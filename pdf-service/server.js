@@ -45,7 +45,6 @@ Handlebars.registerHelper('eq', function(a, b) {
 
 // Browser instance pool
 let browser = null;
-
 async function getBrowser() {
     if (!browser) {
         const launchOptions = {
@@ -59,22 +58,16 @@ async function getBrowser() {
                 '--disable-extensions',
                 '--disable-background-timer-throttling',
                 '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding',
-                '--disable-software-rasterizer',
-                '--disable-web-security',
-                '--disable-features=IsolateOrigins,site-per-process',
-                '--font-render-hinting=none'
+                '--disable-renderer-backgrounding'
             ],
-            // Increase timeout for cloud servers
             timeout: 60000
         };
-        
+
         // Only set executablePath if explicitly provided (for Docker/Linux)
-        // On Windows, let Puppeteer use its bundled Chromium
         if (process.env.PUPPETEER_EXECUTABLE_PATH) {
             launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
         }
-        
+
         console.log('Launching browser with cloud-optimized settings...');
         browser = await puppeteer.launch(launchOptions);
         console.log('Browser launched successfully');
@@ -102,7 +95,7 @@ app.post('/generate-invoice-pdf', async (req, res) => {
     
     try {
         const { invoice } = req.body;
-        
+
         if (!invoice) {
             return res.status(400).json({ error: 'Invoice data is required' });
         }
@@ -118,7 +111,7 @@ app.post('/generate-invoice-pdf', async (req, res) => {
         // Launch browser and create PDF
         const browserInstance = await getBrowser();
         const page = await browserInstance.newPage();
-        
+
         await page.setContent(html, {
             waitUntil: 'networkidle0'
         });
@@ -159,7 +152,7 @@ app.post('/generate-batch-pdf', async (req, res) => {
     
     try {
         const { invoices } = req.body;
-        
+
         if (!invoices || !Array.isArray(invoices)) {
             return res.status(400).json({ error: 'Invoices array is required' });
         }
@@ -220,7 +213,7 @@ app.post('/generate-batch-pdf', async (req, res) => {
             failed: results.filter(r => !r.success).length
         });
 
-        console.log(`Batch PDF generation completed: ${results.filter(r => r.success).length}/${invoices.length} successful`);
+        console.log(`Batch PDF generation completed: ${results.filter(r => r.success).length}/${invoices.length}`);
 
     } catch (error) {
         console.error('Error in batch PDF generation:', error);
@@ -245,4 +238,3 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (error) => {
     console.error('Unhandled Rejection:', error);
 });
-
