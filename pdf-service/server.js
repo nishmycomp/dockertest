@@ -56,10 +56,17 @@ async function getBrowser() {
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
                 '--no-first-run',
-                '--no-zygote',
-                '--single-process',
-                '--disable-extensions'
-            ]
+                '--disable-extensions',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-software-rasterizer',
+                '--disable-web-security',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--font-render-hinting=none'
+            ],
+            // Increase timeout for cloud servers
+            timeout: 60000
         };
         
         // Only set executablePath if explicitly provided (for Docker/Linux)
@@ -68,7 +75,9 @@ async function getBrowser() {
             launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
         }
         
+        console.log('Launching browser with cloud-optimized settings...');
         browser = await puppeteer.launch(launchOptions);
+        console.log('Browser launched successfully');
     }
     return browser;
 }
