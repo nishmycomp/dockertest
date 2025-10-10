@@ -16,6 +16,11 @@ Handlebars.registerHelper('formatCurrency', function(amount) {
     return '$' + parseFloat(amount).toFixed(2);
 });
 
+Handlebars.registerHelper('formatNumber', function(number) {
+    if (!number && number !== 0) return '0.00';
+    return parseFloat(number).toFixed(2);
+});
+
 Handlebars.registerHelper('add', function(a, b) {
     return parseFloat(a || 0) + parseFloat(b || 0);
 });
