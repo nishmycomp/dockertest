@@ -7,10 +7,14 @@ const puppeteer = require('puppeteer');
 const Handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
+const QueueManager = require('./queue-manager');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Queue Manager
+const queueManager = new QueueManager();
 
 // Middleware
 app.use(helmet());
@@ -122,65 +126,47 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Main PDF generation endpoint
+// Queue stats endpoint
+app.get('/queue/stats', async (req, res) => {
+    try {
+        const stats = await queueManager.getAllStats();
+        res.json({ success: true, data: stats });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Main PDF generation endpoint - now uses queue system
 app.post('/generate-invoice-pdf', async (req, res) => {
     console.log('📥 Received PDF generation request');
-    let browserInstance = null;
-    let page = null;
     
     try {
-        const { invoice } = req.body;
+        const { invoice, tenantId = 'app_imploy_com_au' } = req.body;
 
         if (!invoice) {
             return res.status(400).json({ error: 'Invoice data is required' });
         }
 
-        // Load and compile template
-        const templatePath = path.join(__dirname, 'templates', 'invoice-template.hbs');
-        const templateSource = await fs.readFile(templatePath, 'utf-8');
-        const template = Handlebars.compile(templateSource);
-
-        // Generate HTML from template
-        const html = template(invoice);
-
-        // Get browser instance (reuse if available)
-        browserInstance = await getBrowser();
-        page = await browserInstance.newPage();
-
-        await page.setContent(html, {
-            waitUntil: 'networkidle0',
-            timeout: 30000
+        // Add job to queue instead of processing directly
+        const job = await queueManager.addPdfJob(tenantId, invoice, {
+            priority: 0,
+            delay: 0
         });
 
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            printBackground: true,
-            margin: {
-                top: '20mm',
-                right: '15mm',
-                bottom: '20mm',
-                left: '15mm'
-            }
+        console.log(`✅ PDF job added to queue: ${job.id} for tenant: ${tenantId}`);
+        
+        res.json({
+            success: true,
+            message: 'PDF generation job queued successfully',
+            jobId: job.id,
+            tenantId: tenantId,
+            status: 'queued'
         });
-
-        await page.close(); // Close page, but keep browser running
-
-        // Send PDF as response
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
-        res.setHeader('Content-Length', pdfBuffer.length);
-        res.send(pdfBuffer);
-
-        console.log(`✅ PDF generated successfully for invoice ${invoice.invoice_number}`);
 
     } catch (error) {
-        console.error('❌ Error generating PDF:', error);
-        
-        // Cleanup on error (close page only)
-        if (page) await page.close().catch(() => {});
-        
+        console.error('❌ Error adding job to queue:', error);
         res.status(500).json({ 
-            error: 'Failed to generate PDF', 
+            error: 'Failed to queue PDF generation job', 
             message: error.message 
         });
     }
