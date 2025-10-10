@@ -5,27 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Queue Monitor</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --primary: #794d9a; --secondary: #bc1b8d; --dashboard: #412e80; }
+  </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
   <div class="max-w-7xl mx-auto p-6">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-semibold">PDF Service Queue Monitor</h1>
+        <h1 class="text-2xl font-semibold">
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-[#412e80] to-[#bc1b8d]">PDF Service Queue Monitor</span>
+        </h1>
         <p class="text-sm text-gray-600">Multi-tenant queue dashboard with real-time stats</p>
       </div>
       <div class="flex items-center gap-3">
-        <span id="status-pill" class="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-200 text-gray-700">Idle</span>
+        <span id="status-pill" class="inline-flex items-center px-2 py-1 text-xs rounded bg-[#f5ecff] text-[#412e80]">Idle</span>
         <button id="refresh-btn" class="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100">Refresh</button>
       </div>
     </div>
 
-    
     <!-- Top toolbar -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       <div class="bg-white border border-gray-200 rounded p-4">
         <label class="block text-sm text-gray-700 mb-1">Tenant</label>
-        <select id="tenant-select" class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white">
+        <select id="tenant-select" class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#794d9a] focus:border-transparent">
           <option value="app_imploy_com_au">app.imploy.com.au</option>
           <option value="tenant_2">tenant_2</option>
         </select>
@@ -34,7 +38,7 @@
         <label class="block text-sm text-gray-700 mb-2">Actions</label>
         <div class="flex gap-2">
           <button id="pause-btn" class="px-3 py-2 text-sm bg-amber-50 text-amber-700 border border-amber-200 rounded hover:bg-amber-100">Pause</button>
-          <button id="resume-btn" class="px-3 py-2 text-sm bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100">Resume</button>
+          <button id="resume-btn" class="px-3 py-2 text-sm rounded text-white bg-[#794d9a] hover:bg-[#6e448d]">Resume</button>
           <button id="clear-btn" class="px-3 py-2 text-sm bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100">Clear</button>
         </div>
       </div>
@@ -42,7 +46,7 @@
         <label class="block text-sm text-gray-700 mb-2">Auto-refresh</label>
         <div class="flex items-center gap-3">
           <label class="inline-flex items-center gap-2 text-sm"><input id="auto-refresh" type="checkbox" class="rounded border-gray-300"> Enable</label>
-          <select id="refresh-interval" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+          <select id="refresh-interval" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#794d9a] focus:border-transparent">
             <option value="3000">3s</option>
             <option value="5000" selected>5s</option>
             <option value="10000">10s</option>
@@ -53,10 +57,10 @@
 
     <!-- Summary cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Waiting</div><div id="sum-waiting" class="text-2xl font-semibold">0</div></div>
-      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Active</div><div id="sum-active" class="text-2xl font-semibold">0</div></div>
-      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Completed</div><div id="sum-completed" class="text-2xl font-semibold">0</div></div>
-      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Failed</div><div id="sum-failed" class="text-2xl font-semibold">0</div></div>
+      <div class="bg-white border border-gray-200 rounded p-4 border-t-4 border-t-[#412e80]"><div class="text-xs text-gray-600">Waiting</div><div id="sum-waiting" class="text-2xl font-semibold">0</div></div>
+      <div class="bg-white border border-gray-200 rounded p-4 border-t-4 border-t-[#794d9a]"><div class="text-xs text-gray-600">Active</div><div id="sum-active" class="text-2xl font-semibold">0</div></div>
+      <div class="bg-white border border-gray-200 rounded p-4 border-t-4 border-t-[#bc1b8d]"><div class="text-xs text-gray-600">Completed</div><div id="sum-completed" class="text-2xl font-semibold">0</div></div>
+      <div class="bg-white border border-gray-200 rounded p-4 border-t-4 border-t-red-400"><div class="text-xs text-gray-600">Failed</div><div id="sum-failed" class="text-2xl font-semibold">0</div></div>
     </div>
 
     <!-- Tenant cards -->
@@ -67,7 +71,7 @@
       <div class="bg-white border border-gray-200 rounded">
         <div class="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 class="text-sm font-medium">Recent Completed</h2>
-          <button id="reload-completed" class="text-xs text-gray-600 hover:text-gray-800">Reload</button>
+          <button id="reload-completed" class="text-xs text-[#794d9a] hover:text-[#6e448d]">Reload</button>
         </div>
         <div id="completed-list" class="p-4 text-sm text-gray-700 space-y-2">
           <div class="text-gray-500">No data</div>
@@ -76,7 +80,7 @@
       <div class="bg-white border border-gray-200 rounded">
         <div class="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 class="text-sm font-medium">Recent Failed</h2>
-          <button id="reload-failed" class="text-xs text-gray-600 hover:text-gray-800">Reload</button>
+          <button id="reload-failed" class="text-xs text-[#794d9a] hover:text-[#6e448d]">Reload</button>
         </div>
         <div id="failed-list" class="p-4 text-sm text-gray-700 space-y-2">
           <div class="text-gray-500">No data</div>
@@ -112,12 +116,12 @@
 
     function showToast(message, type = 'info') {
       const el = document.getElementById('toast');
-      const colors = {
+      const styles = {
         info: 'bg-gray-900 text-white',
-        success: 'bg-green-600 text-white',
+        success: 'bg-[#794d9a] text-white',
         error: 'bg-red-600 text-white',
       };
-      el.className = `fixed bottom-4 right-4 px-3 py-2 rounded text-sm shadow ${colors[type]}`;
+      el.className = `fixed bottom-4 right-4 px-3 py-2 rounded text-sm shadow ${styles[type]}`;
       el.textContent = message;
       el.classList.remove('hidden');
       setTimeout(() => el.classList.add('hidden'), 2500);
@@ -142,8 +146,9 @@
       sumActive.textContent = totals.active;
       sumCompleted.textContent = totals.completed;
       sumFailed.textContent = totals.failed;
-      statusPill.textContent = totals.active > 0 ? 'Active' : 'Idle';
-      statusPill.className = `inline-flex items-center px-2 py-1 text-xs rounded ${totals.active > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`;
+      const active = totals.active > 0;
+      statusPill.textContent = active ? 'Active' : 'Idle';
+      statusPill.className = `inline-flex items-center px-2 py-1 text-xs rounded ${active ? 'bg-[#eaf7f0] text-green-700' : 'bg-[#f5ecff] text-[#412e80]'}`;
     }
 
     function renderTenantCards(allStats) {
@@ -151,17 +156,20 @@
       Object.entries(allStats || {}).forEach(([tenantId, s]) => {
         if (!s) return;
         const card = document.createElement('div');
-        card.className = 'bg-white border border-gray-200 rounded p-4';
+        card.className = 'bg-white border border-gray-200 rounded overflow-hidden';
         card.innerHTML = `
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-sm font-medium">${tenantId}</div>
-            <span class="text-xs ${s.active > 0 ? 'text-green-700' : 'text-gray-600'}">${s.active > 0 ? 'Active' : 'Idle'}</span>
-          </div>
-          <div class="grid grid-cols-4 gap-3 text-center">
-            <div><div class="text-lg font-semibold">${s.waiting}</div><div class="text-[11px] text-gray-600">Waiting</div></div>
-            <div><div class="text-lg font-semibold">${s.active}</div><div class="text-[11px] text-gray-600">Active</div></div>
-            <div><div class="text-lg font-semibold">${s.completed}</div><div class="text-[11px] text-gray-600">Done</div></div>
-            <div><div class="text-lg font-semibold">${s.failed}</div><div class="text-[11px] text-gray-600">Failed</div></div>
+          <div class="h-1.5 bg-gradient-to-r from-[#412e80] to-[#bc1b8d]"></div>
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-sm font-medium">${tenantId}</div>
+              <span class="text-xs ${s.active > 0 ? 'text-green-700' : 'text-gray-600'}">${s.active > 0 ? 'Active' : 'Idle'}</span>
+            </div>
+            <div class="grid grid-cols-4 gap-3 text-center">
+              <div><div class="text-lg font-semibold">${s.waiting}</div><div class="text-[11px] text-gray-600">Waiting</div></div>
+              <div><div class="text-lg font-semibold text-[#794d9a]">${s.active}</div><div class="text-[11px] text-gray-600">Active</div></div>
+              <div><div class="text-lg font-semibold text-[#bc1b8d]">${s.completed}</div><div class="text-[11px] text-gray-600">Done</div></div>
+              <div><div class="text-lg font-semibold text-red-500">${s.failed}</div><div class="text-[11px] text-gray-600">Failed</div></div>
+            </div>
           </div>
         `;
         tenantCards.appendChild(card);
@@ -193,7 +201,6 @@
     }
 
     async function loadRecentLists() {
-      // Placeholder: these endpoints can be implemented later to fetch real job data
       completedList.innerHTML = '<div class="text-gray-500">Awaiting completed jobs...</div>';
       failedList.innerHTML = '<div class="text-gray-500">Awaiting failed jobs...</div>';
     }
