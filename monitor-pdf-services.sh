@@ -91,3 +91,4 @@ echo "• View all logs: docker-compose -f docker-compose-multi.yml logs -f"
 echo "• Restart services: docker-compose -f docker-compose-multi.yml restart"
 echo "• Stop services: docker-compose -f docker-compose-multi.yml down"
 echo "• Scale services: docker-compose -f docker-compose-multi.yml up -d --scale pdf-service-1=2"
+

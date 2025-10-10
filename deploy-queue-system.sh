@@ -138,3 +138,4 @@ echo "2. Test bulk invoice processing from your Laravel app"
 echo "3. Monitor queue performance in the dashboard"
 echo ""
 print_success "Ready for bulk invoice email processing! 🚀"
+

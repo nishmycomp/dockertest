@@ -121,3 +121,4 @@ echo "• Check certificate: openssl x509 -in ssl/cert.pem -text -noout"
 echo "• Test SSL: openssl s_client -connect localhost:443"
 echo "• Renew Let's Encrypt: certbot renew"
 echo "• Check security headers: curl -I https://localhost/health"
+

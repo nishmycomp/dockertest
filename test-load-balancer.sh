@@ -127,3 +127,4 @@ print_header "Performance check:"
 echo "======================"
 echo "Check resource usage:"
 echo "docker stats --no-stream"
+

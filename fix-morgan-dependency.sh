@@ -109,3 +109,4 @@ echo "• PDF Service 2: http://localhost:3002"
 echo "• PDF Service 3: http://localhost:3003"
 echo ""
 print_success "Ready for bulk invoice processing! 🚀"
+

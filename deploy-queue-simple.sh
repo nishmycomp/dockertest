@@ -136,3 +136,4 @@ echo "2. Access the dashboard:"
 echo "   http://62.72.57.236:3004"
 echo ""
 print_success "Ready for bulk invoice email processing! 🚀"
+

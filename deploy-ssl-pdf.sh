@@ -142,3 +142,4 @@ print_warning "For production, replace self-signed certificates with Let's Encry
 echo "  certbot --nginx -d your-domain.com"
 echo ""
 print_success "Setup complete! Your PDF service is now encrypted and can handle 15-20 concurrent users! 🔐🚀"
+

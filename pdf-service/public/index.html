@@ -1,269 +1,226 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Service Queue Monitor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Queue Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-8">📊 PDF Service Queue Monitor</h1>
-        
-        <!-- Tenant Stats -->
-        <div id="tenant-stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Stats will be populated here -->
-        </div>
-
-        <!-- Charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-4">Queue Status</h3>
-                <canvas id="queueChart" width="400" height="200"></canvas>
-            </div>
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-semibold mb-4">Processing Rate</h3>
-                <canvas id="rateChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-
-        <!-- Bulk Operations -->
-        <div class="bg-white p-6 rounded-lg shadow mb-8">
-            <h3 class="text-lg font-semibold mb-4">Bulk Operations</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Tenant</label>
-                    <select id="tenant-select" class="w-full p-2 border border-gray-300 rounded-md">
-                        <option value="app_imploy_com_au">app.imploy.com.au</option>
-                        <option value="tenant_2">Tenant 2</option>
-                    </select>
-                </div>
-                <div class="flex space-x-4">
-                    <button id="pause-queue" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
-                        ⏸️ Pause Queue
-                    </button>
-                    <button id="resume-queue" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                        ▶️ Resume Queue
-                    </button>
-                    <button id="clear-queue" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-                        🗑️ Clear Queue
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Real-time Logs -->
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-4">Real-time Logs</h3>
-            <div id="logs" class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-64 overflow-y-auto">
-                <div>📡 Connecting to WebSocket...</div>
-            </div>
-        </div>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold">PDF Service Queue Monitor</h1>
+        <p class="text-sm text-gray-600">Multi-tenant queue dashboard with real-time stats</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="status-pill" class="inline-flex items-center px-2 py-1 text-xs rounded bg-gray-200 text-gray-700">Idle</span>
+        <button id="refresh-btn" class="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100">Refresh</button>
+      </div>
     </div>
 
-    <script>
-        class QueueMonitor {
-            constructor() {
-                this.ws = null;
-                this.charts = {};
-                this.init();
-            }
+    
+    <!-- Top toolbar -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white border border-gray-200 rounded p-4">
+        <label class="block text-sm text-gray-700 mb-1">Tenant</label>
+        <select id="tenant-select" class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white">
+          <option value="app_imploy_com_au">app.imploy.com.au</option>
+          <option value="tenant_2">tenant_2</option>
+        </select>
+      </div>
+      <div class="bg-white border border-gray-200 rounded p-4">
+        <label class="block text-sm text-gray-700 mb-2">Actions</label>
+        <div class="flex gap-2">
+          <button id="pause-btn" class="px-3 py-2 text-sm bg-amber-50 text-amber-700 border border-amber-200 rounded hover:bg-amber-100">Pause</button>
+          <button id="resume-btn" class="px-3 py-2 text-sm bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100">Resume</button>
+          <button id="clear-btn" class="px-3 py-2 text-sm bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100">Clear</button>
+        </div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded p-4">
+        <label class="block text-sm text-gray-700 mb-2">Auto-refresh</label>
+        <div class="flex items-center gap-3">
+          <label class="inline-flex items-center gap-2 text-sm"><input id="auto-refresh" type="checkbox" class="rounded border-gray-300"> Enable</label>
+          <select id="refresh-interval" class="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
+            <option value="3000">3s</option>
+            <option value="5000" selected>5s</option>
+            <option value="10000">10s</option>
+          </select>
+        </div>
+      </div>
+    </div>
 
-            init() {
-                this.connectWebSocket();
-                this.setupEventListeners();
-                this.setupCharts();
-            }
+    <!-- Summary cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Waiting</div><div id="sum-waiting" class="text-2xl font-semibold">0</div></div>
+      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Active</div><div id="sum-active" class="text-2xl font-semibold">0</div></div>
+      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Completed</div><div id="sum-completed" class="text-2xl font-semibold">0</div></div>
+      <div class="bg-white border border-gray-200 rounded p-4"><div class="text-xs text-gray-600">Failed</div><div id="sum-failed" class="text-2xl font-semibold">0</div></div>
+    </div>
 
-            connectWebSocket() {
-                this.ws = new WebSocket('ws://localhost:3005');
-                
-                this.ws.onopen = () => {
-                    this.addLog('📡 Connected to WebSocket');
-                };
-                
-                this.ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.type === 'stats') {
-                        this.updateStats(data.data);
-                    }
-                };
-                
-                this.ws.onclose = () => {
-                    this.addLog('📡 WebSocket disconnected, reconnecting...');
-                    setTimeout(() => this.connectWebSocket(), 5000);
-                };
-            }
+    <!-- Tenant cards -->
+    <div id="tenant-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
 
-            setupEventListeners() {
-                document.getElementById('pause-queue').addEventListener('click', () => {
-                    this.pauseQueue();
-                });
-                
-                document.getElementById('resume-queue').addEventListener('click', () => {
-                    this.resumeQueue();
-                });
-                
-                document.getElementById('clear-queue').addEventListener('click', () => {
-                    this.clearQueue();
-                });
-            }
+    <!-- Job lists -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white border border-gray-200 rounded">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 class="text-sm font-medium">Recent Completed</h2>
+          <button id="reload-completed" class="text-xs text-gray-600 hover:text-gray-800">Reload</button>
+        </div>
+        <div id="completed-list" class="p-4 text-sm text-gray-700 space-y-2">
+          <div class="text-gray-500">No data</div>
+        </div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 class="text-sm font-medium">Recent Failed</h2>
+          <button id="reload-failed" class="text-xs text-gray-600 hover:text-gray-800">Reload</button>
+        </div>
+        <div id="failed-list" class="p-4 text-sm text-gray-700 space-y-2">
+          <div class="text-gray-500">No data</div>
+        </div>
+      </div>
+    </div>
 
-            setupCharts() {
-                // Queue Status Chart
-                const queueCtx = document.getElementById('queueChart').getContext('2d');
-                this.charts.queue = new Chart(queueCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Waiting', 'Active', 'Completed', 'Failed'],
-                        datasets: [{
-                            data: [0, 0, 0, 0],
-                            backgroundColor: ['#3B82F6', '#F59E0B', '#10B981', '#EF4444']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false
-                    }
-                });
+    <!-- Toasts -->
+    <div id="toast" class="fixed bottom-4 right-4 hidden"></div>
+  </div>
 
-                // Processing Rate Chart
-                const rateCtx = document.getElementById('rateChart').getContext('2d');
-                this.charts.rate = new Chart(rateCtx, {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [{
-                            label: 'Jobs/Minute',
-                            data: [],
-                            borderColor: '#3B82F6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            }
+  <script>
+    const statusPill = document.getElementById('status-pill');
+    const tenantSelect = document.getElementById('tenant-select');
+    const sumWaiting = document.getElementById('sum-waiting');
+    const sumActive = document.getElementById('sum-active');
+    const sumCompleted = document.getElementById('sum-completed');
+    const sumFailed = document.getElementById('sum-failed');
+    const tenantCards = document.getElementById('tenant-cards');
 
-            updateStats(stats) {
-                this.updateTenantCards(stats);
-                this.updateCharts(stats);
-            }
+    const autoRefresh = document.getElementById('auto-refresh');
+    const refreshInterval = document.getElementById('refresh-interval');
+    const refreshBtn = document.getElementById('refresh-btn');
 
-            updateTenantCards(stats) {
-                const container = document.getElementById('tenant-stats');
-                container.innerHTML = '';
+    const pauseBtn = document.getElementById('pause-btn');
+    const resumeBtn = document.getElementById('resume-btn');
+    const clearBtn = document.getElementById('clear-btn');
 
-                Object.entries(stats).forEach(([tenantId, data]) => {
-                    if (!data) return;
+    const completedList = document.getElementById('completed-list');
+    const failedList = document.getElementById('failed-list');
 
-                    const card = document.createElement('div');
-                    card.className = 'bg-white p-6 rounded-lg shadow';
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-semibold">${tenantId}</h3>
-                            <span class="px-2 py-1 text-xs rounded ${data.active > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
-                                ${data.active > 0 ? 'Active' : 'Idle'}
-                            </span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-blue-600">${data.waiting}</div>
-                                <div class="text-sm text-gray-600">Waiting</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-yellow-600">${data.active}</div>
-                                <div class="text-sm text-gray-600">Active</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-green-600">${data.completed}</div>
-                                <div class="text-sm text-gray-600">Completed</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-red-600">${data.failed}</div>
-                                <div class="text-sm text-gray-600">Failed</div>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-            }
+    let timer = null;
 
-            updateCharts(stats) {
-                // Update queue status chart
-                const totalStats = Object.values(stats).reduce((acc, data) => {
-                    if (!data) return acc;
-                    acc.waiting += data.waiting;
-                    acc.active += data.active;
-                    acc.completed += data.completed;
-                    acc.failed += data.failed;
-                    return acc;
-                }, { waiting: 0, active: 0, completed: 0, failed: 0 });
+    function showToast(message, type = 'info') {
+      const el = document.getElementById('toast');
+      const colors = {
+        info: 'bg-gray-900 text-white',
+        success: 'bg-green-600 text-white',
+        error: 'bg-red-600 text-white',
+      };
+      el.className = `fixed bottom-4 right-4 px-3 py-2 rounded text-sm shadow ${colors[type]}`;
+      el.textContent = message;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 2500);
+    }
 
-                this.charts.queue.data.datasets[0].data = [
-                    totalStats.waiting,
-                    totalStats.active,
-                    totalStats.completed,
-                    totalStats.failed
-                ];
-                this.charts.queue.update();
-            }
+    async function fetchJSON(url, opts = {}) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error(`${res.status}: ${url}`);
+      return await res.json();
+    }
 
-            async pauseQueue() {
-                const tenantId = document.getElementById('tenant-select').value;
-                try {
-                    const response = await fetch(`/api/tenant/${tenantId}/pause`, { method: 'POST' });
-                    const result = await response.json();
-                    this.addLog(`⏸️ ${result.message}`);
-                } catch (error) {
-                    this.addLog(`❌ Error pausing queue: ${error.message}`);
-                }
-            }
+    function renderSummary(allStats) {
+      const totals = { waiting: 0, active: 0, completed: 0, failed: 0 };
+      Object.values(allStats || {}).forEach(s => {
+        if (!s) return;
+        totals.waiting += s.waiting;
+        totals.active += s.active;
+        totals.completed += s.completed;
+        totals.failed += s.failed;
+      });
+      sumWaiting.textContent = totals.waiting;
+      sumActive.textContent = totals.active;
+      sumCompleted.textContent = totals.completed;
+      sumFailed.textContent = totals.failed;
+      statusPill.textContent = totals.active > 0 ? 'Active' : 'Idle';
+      statusPill.className = `inline-flex items-center px-2 py-1 text-xs rounded ${totals.active > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`;
+    }
 
-            async resumeQueue() {
-                const tenantId = document.getElementById('tenant-select').value;
-                try {
-                    const response = await fetch(`/api/tenant/${tenantId}/resume`, { method: 'POST' });
-                    const result = await response.json();
-                    this.addLog(`▶️ ${result.message}`);
-                } catch (error) {
-                    this.addLog(`❌ Error resuming queue: ${error.message}`);
-                }
-            }
+    function renderTenantCards(allStats) {
+      tenantCards.innerHTML = '';
+      Object.entries(allStats || {}).forEach(([tenantId, s]) => {
+        if (!s) return;
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-gray-200 rounded p-4';
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-sm font-medium">${tenantId}</div>
+            <span class="text-xs ${s.active > 0 ? 'text-green-700' : 'text-gray-600'}">${s.active > 0 ? 'Active' : 'Idle'}</span>
+          </div>
+          <div class="grid grid-cols-4 gap-3 text-center">
+            <div><div class="text-lg font-semibold">${s.waiting}</div><div class="text-[11px] text-gray-600">Waiting</div></div>
+            <div><div class="text-lg font-semibold">${s.active}</div><div class="text-[11px] text-gray-600">Active</div></div>
+            <div><div class="text-lg font-semibold">${s.completed}</div><div class="text-[11px] text-gray-600">Done</div></div>
+            <div><div class="text-lg font-semibold">${s.failed}</div><div class="text-[11px] text-gray-600">Failed</div></div>
+          </div>
+        `;
+        tenantCards.appendChild(card);
+      });
+    }
 
-            async clearQueue() {
-                const tenantId = document.getElementById('tenant-select').value;
-                if (confirm(`Are you sure you want to clear the queue for ${tenantId}?`)) {
-                    try {
-                        const response = await fetch(`/api/tenant/${tenantId}/clear`, { method: 'POST' });
-                        const result = await response.json();
-                        this.addLog(`🗑️ ${result.message}`);
-                    } catch (error) {
-                        this.addLog(`❌ Error clearing queue: ${error.message}`);
-                    }
-                }
-            }
+    async function loadStats() {
+      try {
+        const data = await fetchJSON('/api/stats');
+        if (!data.success) throw new Error('Stats failed');
+        renderSummary(data.data);
+        renderTenantCards(data.data);
+      } catch (e) {
+        showToast('Failed to load stats', 'error');
+      }
+    }
 
-            addLog(message) {
-                const logs = document.getElementById('logs');
-                const timestamp = new Date().toLocaleTimeString();
-                logs.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-                logs.scrollTop = logs.scrollHeight;
-            }
-        }
+    async function tenantAction(action) {
+      const tenantId = tenantSelect.value;
+      try {
+        const res = await fetch(`/api/tenant/${tenantId}/${action}`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Action failed');
+        showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} successful`, 'success');
+        loadStats();
+      } catch (e) {
+        showToast(`Failed to ${action}`, 'error');
+      }
+    }
 
-        // Initialize monitor when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new QueueMonitor();
-        });
-    </script>
+    async function loadRecentLists() {
+      // Placeholder: these endpoints can be implemented later to fetch real job data
+      completedList.innerHTML = '<div class="text-gray-500">Awaiting completed jobs...</div>';
+      failedList.innerHTML = '<div class="text-gray-500">Awaiting failed jobs...</div>';
+    }
+
+    function startAutoRefresh() {
+      if (timer) clearInterval(timer);
+      if (autoRefresh.checked) {
+        timer = setInterval(() => {
+          loadStats();
+          loadRecentLists();
+        }, parseInt(refreshInterval.value, 10));
+      }
+    }
+
+    // Event bindings
+    refreshBtn.addEventListener('click', () => { loadStats(); loadRecentLists(); });
+    autoRefresh.addEventListener('change', startAutoRefresh);
+    refreshInterval.addEventListener('change', startAutoRefresh);
+    pauseBtn.addEventListener('click', () => tenantAction('pause'));
+    resumeBtn.addEventListener('click', () => tenantAction('resume'));
+    clearBtn.addEventListener('click', () => tenantAction('clear'));
+
+    // Initial
+    loadStats();
+    loadRecentLists();
+    autoRefresh.checked = true;
+    startAutoRefresh();
+  </script>
 </body>
 </html>

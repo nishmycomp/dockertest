@@ -92,3 +92,4 @@ print_success "If you see jobs in the queue stats, the integration is working!"
 echo ""
 print_header "Dashboard URL: http://62.72.57.236:3004"
 print_header "Monitor the queue in real-time!"
+

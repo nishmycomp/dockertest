@@ -111,3 +111,4 @@ print_warning "Update your Laravel .env file:"
 echo "  PDF_SERVICE_URL=http://your-vm-ip:80"
 echo ""
 print_success "Setup complete! Your PDF service can now handle 15-20 concurrent users! 🚀"
+

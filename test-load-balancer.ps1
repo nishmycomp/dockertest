@@ -114,3 +114,4 @@ Write-Host "docker compose -f docker-compose-localhost.yml logs -f" -ForegroundC
 Write-Host ""
 
 Write-Host "🚀 Ready to test! Run this script and watch the magic happen!" -ForegroundColor Green
+
