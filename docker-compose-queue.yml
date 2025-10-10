@@ -120,6 +120,7 @@ services:
       dockerfile: Dockerfile.simple
     container_name: pdf-worker-1
     command: ["node", "worker.js"]
+    shm_size: '1gb'
     environment:
       - NODE_ENV=production
       - REDIS_HOST=redis
@@ -127,8 +128,8 @@ services:
       - WORKER_ID=worker-1
       - LARAVEL_URL=${LARAVEL_URL:-http://127.0.0.1:8000}
       - LARAVEL_API_TOKEN=${LARAVEL_API_TOKEN}
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
     volumes:
-      - ./pdf-service:/app
       - pdf_storage:/app/storage
     depends_on:
       - redis
@@ -136,9 +137,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 4G
         reservations:
-          memory: 512M
+          memory: 1G
 
   pdf-worker-2:
     build:
@@ -146,6 +147,7 @@ services:
       dockerfile: Dockerfile.simple
     container_name: pdf-worker-2
     command: ["node", "worker.js"]
+    shm_size: '1gb'
     environment:
       - NODE_ENV=production
       - REDIS_HOST=redis
@@ -153,8 +155,8 @@ services:
       - WORKER_ID=worker-2
       - LARAVEL_URL=${LARAVEL_URL:-http://127.0.0.1:8000}
       - LARAVEL_API_TOKEN=${LARAVEL_API_TOKEN}
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
     volumes:
-      - ./pdf-service:/app
       - pdf_storage:/app/storage
     depends_on:
       - redis
@@ -162,9 +164,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 4G
         reservations:
-          memory: 512M
+          memory: 1G
 
   # Queue Monitor
   queue-monitor:
