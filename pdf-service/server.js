@@ -136,12 +136,37 @@ app.get('/queue/stats', async (req, res) => {
     }
 });
 
+// Batch lifecycle endpoints
+app.post('/queue/batch/start', async (req, res) => {
+    try {
+        const { tenantId = 'app_imploy_com_au', batchId, total } = req.body || {};
+        if (!batchId || !Number.isFinite(Number(total))) {
+            return res.status(400).json({ success: false, error: 'batchId and total are required' });
+        }
+        await queueManager.startBatch(tenantId, String(batchId), Number(total));
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/queue/batch/:tenantId/:batchId', async (req, res) => {
+    try {
+        const { tenantId, batchId } = req.params;
+        const status = await queueManager.getBatchStatus(tenantId, String(batchId));
+        if (!status) return res.status(404).json({ success: false, error: 'Batch not found' });
+        res.json({ success: true, data: status });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Main PDF generation endpoint - now uses queue system
 app.post('/generate-invoice-pdf', async (req, res) => {
     console.log('📥 Received PDF generation request');
     
     try {
-        const { invoice, tenantId = 'app_imploy_com_au' } = req.body;
+        const { invoice, tenantId = 'app_imploy_com_au', batchId, total } = req.body;
 
         if (!invoice) {
             return res.status(400).json({ error: 'Invoice data is required' });
@@ -150,7 +175,8 @@ app.post('/generate-invoice-pdf', async (req, res) => {
         // Add job to queue instead of processing directly
         const job = await queueManager.addPdfJob(tenantId, invoice, {
             priority: 0,
-            delay: 0
+            delay: 0,
+            batchId: batchId || null
         });
 
         console.log(`✅ PDF job added to queue: ${job.id} for tenant: ${tenantId}`);
@@ -160,7 +186,8 @@ app.post('/generate-invoice-pdf', async (req, res) => {
             message: 'PDF generation job queued successfully',
             jobId: job.id,
             tenantId: tenantId,
-            status: 'queued'
+            status: 'queued',
+            batchId: batchId || null
         });
 
     } catch (error) {

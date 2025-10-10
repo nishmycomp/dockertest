@@ -9,6 +9,11 @@ class QueueManager {
             password: process.env.REDIS_PASSWORD || null
         });
 
+        // Connect for node-redis v4, ignore if v3
+        if (typeof this.redis.connect === 'function') {
+            this.redis.connect().catch(() => {});
+        }
+
         this.queues = new Map();
         this.tenantConfigs = new Map();
         
@@ -74,8 +79,73 @@ class QueueManager {
         console.log(`✅ Queue created for tenant: ${config.name}`);
     }
 
+    // ---- Batch helpers (Redis HSET/HINCRBY compatibility v3/v4) ----
+    async hSetCompat(key, obj) {
+        if (typeof this.redis.hSet === 'function') {
+            // v4 style
+            for (const [field, value] of Object.entries(obj)) {
+                await this.redis.hSet(key, field, String(value));
+            }
+        } else {
+            // v3 style
+            for (const [field, value] of Object.entries(obj)) {
+                await new Promise((resolve, reject) => this.redis.hset(key, field, String(value), (e) => e ? reject(e) : resolve()));
+            }
+        }
+    }
+
+    async hIncrByCompat(key, field, by) {
+        if (typeof this.redis.hIncrBy === 'function') {
+            await this.redis.hIncrBy(key, field, by);
+        } else {
+            await new Promise((resolve, reject) => this.redis.hincrby(key, field, by, (e) => e ? reject(e) : resolve()));
+        }
+    }
+
+    async hGetAllCompat(key) {
+        if (typeof this.redis.hGetAll === 'function') {
+            return await this.redis.hGetAll(key);
+        }
+        return await new Promise((resolve, reject) => this.redis.hgetall(key, (e, res) => e ? reject(e) : resolve(res)));
+    }
+
+    getBatchKey(tenantId, batchId) {
+        return `batch:${tenantId}:${batchId}`;
+    }
+
+    async startBatch(tenantId, batchId, total) {
+        if (!tenantId || !batchId || !Number.isFinite(Number(total))) return;
+        const key = this.getBatchKey(tenantId, batchId);
+        // Initialize if not exists; always set total to latest provided
+        await this.hSetCompat(key, { total: total, completed: 0, failed: 0, createdAt: Date.now() });
+    }
+
+    async incrBatchCompleted(tenantId, batchId) {
+        const key = this.getBatchKey(tenantId, batchId);
+        await this.hIncrByCompat(key, 'completed', 1);
+    }
+
+    async incrBatchFailed(tenantId, batchId) {
+        const key = this.getBatchKey(tenantId, batchId);
+        await this.hIncrByCompat(key, 'failed', 1);
+    }
+
+    async getBatchStatus(tenantId, batchId) {
+        const key = this.getBatchKey(tenantId, batchId);
+        const data = await this.hGetAllCompat(key);
+        if (!data) return null;
+        return {
+            tenantId,
+            batchId,
+            total: Number(data.total || 0),
+            completed: Number(data.completed || 0),
+            failed: Number(data.failed || 0),
+            pending: Math.max(0, Number(data.total || 0) - Number(data.completed || 0) - Number(data.failed || 0))
+        };
+    }
+
     async processPdfJob(job, tenantId) {
-        const { invoiceData, options } = job.data;
+        const { invoiceData, options, batchId } = job.data;
         const config = this.tenantConfigs.get(tenantId);
         
         console.log(`📄 Processing PDF for tenant ${config.name}: ${invoiceData.invoice_number}`);
@@ -88,6 +158,11 @@ class QueueManager {
             const pdfPath = `invoices/${tenantId}/${invoiceData.invoice_number}.pdf`;
             await this.storePdf(pdfBuffer, pdfPath);
             
+            // Update batch counters
+            if (batchId) {
+                await this.incrBatchCompleted(tenantId, batchId).catch(() => {});
+            }
+
             return {
                 success: true,
                 pdfPath,
@@ -96,6 +171,9 @@ class QueueManager {
             };
         } catch (error) {
             console.error(`❌ PDF generation failed for ${config.name}:`, error);
+            if (batchId) {
+                await this.incrBatchFailed(tenantId, batchId).catch(() => {});
+            }
             throw error;
         }
     }
@@ -149,7 +227,8 @@ class QueueManager {
         return await queue.add('generate-pdf', {
             invoiceData,
             options,
-            tenantId
+            tenantId,
+            batchId: options.batchId || null
         }, {
             priority: options.priority || 0,
             delay: options.delay || 0

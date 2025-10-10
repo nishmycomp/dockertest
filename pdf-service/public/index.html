@@ -55,6 +55,34 @@
       </div>
     </div>
 
+    <!-- Batch section -->
+    <div class="bg-white border border-gray-200 rounded p-4 mb-6">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div class="w-full md:w-1/2">
+          <label class="block text-sm text-gray-700 mb-1">Batch ID</label>
+          <input id="batch-id" type="text" placeholder="e.g., 2025-10-10-INV-BATCH-001" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#794d9a] focus:border-transparent" />
+        </div>
+        <div class="w-full md:w-1/2 grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Total</label>
+            <input id="batch-total" type="number" min="1" placeholder="10" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#794d9a] focus:border-transparent" />
+          </div>
+          <div class="flex items-end">
+            <button id="batch-start" class="w-full px-3 py-2 text-sm rounded text-white bg-[#794d9a] hover:bg-[#6e448d]">Start Batch</button>
+          </div>
+        </div>
+      </div>
+      <div id="batch-progress-wrap" class="mt-4 hidden">
+        <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
+          <span id="batch-progress-label">Batch progress</span>
+          <span id="batch-progress-count">0 / 0</span>
+        </div>
+        <div class="w-full bg-gray-100 rounded h-2 overflow-hidden">
+          <div id="batch-progress-bar" class="h-2 bg-gradient-to-r from-[#412e80] to-[#bc1b8d]" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Summary cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-white border border-gray-200 rounded p-4 border-t-4 border-t-[#412e80]"><div class="text-xs text-gray-600">Waiting</div><div id="sum-waiting" class="text-2xl font-semibold">0</div></div>
@@ -178,13 +206,73 @@
 
     async function loadStats() {
       try {
-        const data = await fetchJSON('/api/stats');
+        const data = await fetchJSON('/queue/stats');
         if (!data.success) throw new Error('Stats failed');
         renderSummary(data.data);
         renderTenantCards(data.data);
       } catch (e) {
         showToast('Failed to load stats', 'error');
       }
+    }
+
+    // ---- Batch client logic ----
+    const batchIdInput = document.getElementById('batch-id');
+    const batchTotalInput = document.getElementById('batch-total');
+    const batchStartBtn = document.getElementById('batch-start');
+    const batchProgressWrap = document.getElementById('batch-progress-wrap');
+    const batchProgressBar = document.getElementById('batch-progress-bar');
+    const batchProgressCount = document.getElementById('batch-progress-count');
+    const batchProgressLabel = document.getElementById('batch-progress-label');
+    let batchPollTimer = null;
+
+    async function startBatch() {
+      const tenantId = tenantSelect.value;
+      const batchId = (batchIdInput.value || '').trim();
+      const total = parseInt(batchTotalInput.value, 10);
+      if (!batchId || !Number.isFinite(total) || total <= 0) {
+        showToast('Provide batchId and total > 0', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/queue/batch/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId, batchId, total })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Start failed');
+        showToast('Batch started', 'success');
+        batchProgressWrap.classList.remove('hidden');
+        pollBatch(tenantId, batchId, total);
+      } catch (e) {
+        showToast('Failed to start batch', 'error');
+      }
+    }
+
+    async function pollBatch(tenantId, batchId, declaredTotal) {
+      if (batchPollTimer) clearInterval(batchPollTimer);
+      const updateOnce = async () => {
+        try {
+          const res = await fetch(`/queue/batch/${tenantId}/${batchId}`);
+          const data = await res.json();
+          if (!data.success) throw new Error();
+          const total = data.data.total || declaredTotal || 0;
+          const completed = data.data.completed || 0;
+          const failed = data.data.failed || 0;
+          const done = completed + failed;
+          const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+          batchProgressBar.style.width = pct + '%';
+          batchProgressCount.textContent = `${done} / ${total}`;
+          batchProgressLabel.textContent = failed > 0 ? `Batch progress (failed: ${failed})` : 'Batch progress';
+          if (done >= total && total > 0) {
+            clearInterval(batchPollTimer);
+          }
+        } catch (_) {
+          // ignore transient errors
+        }
+      };
+      await updateOnce();
+      batchPollTimer = setInterval(updateOnce, 2000);
     }
 
     async function tenantAction(action) {
