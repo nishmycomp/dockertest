@@ -129,6 +129,12 @@ services:
       - LARAVEL_URL=${LARAVEL_URL:-http://127.0.0.1:8000}
       - LARAVEL_API_TOKEN=${LARAVEL_API_TOKEN}
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-Imploy <noreply@imploy.com.au>}
     volumes:
       - pdf_storage:/app/storage
     depends_on:
@@ -156,6 +162,12 @@ services:
       - LARAVEL_URL=${LARAVEL_URL:-http://127.0.0.1:8000}
       - LARAVEL_API_TOKEN=${LARAVEL_API_TOKEN}
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-Imploy <noreply@imploy.com.au>}
     volumes:
       - pdf_storage:/app/storage
     depends_on:
