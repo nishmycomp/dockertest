@@ -1,90 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice {{invoiceNumber}}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6; }
-        .email-container { max-width: 600px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        .header { background: linear-gradient(135deg, #412e80 0%, #bc1b8d 100%); color: white; padding: 40px 30px; text-align: center; }
-        .header h1 { font-size: 28px; font-weight: 600; margin-bottom: 8px; }
-        .header p { font-size: 14px; opacity: 0.9; }
-        .content { padding: 40px 30px; }
-        .greeting { font-size: 16px; margin-bottom: 20px; }
-        .message { font-size: 15px; color: #4b5563; margin-bottom: 30px; line-height: 1.7; }
-        .invoice-card { background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin: 30px 0; }
-        .invoice-card h2 { font-size: 18px; color: #412e80; margin-bottom: 16px; }
-        .invoice-detail { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
-        .invoice-detail:last-child { border-bottom: none; }
-        .detail-label { font-weight: 500; color: #6b7280; }
-        .detail-value { font-weight: 600; color: #1f2937; }
-        .amount { font-size: 20px; color: #794d9a; }
-        .cta-button { display: inline-block; margin: 20px 0; padding: 14px 32px; background: linear-gradient(135deg, #794d9a 0%, #bc1b8d 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 500; transition: transform 0.2s; }
-        .cta-button:hover { transform: translateY(-2px); }
-        .footer { background: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb; }
-        .footer p { font-size: 13px; color: #6b7280; margin: 8px 0; }
-        .footer a { color: #794d9a; text-decoration: none; }
-        .divider { height: 1px; background: linear-gradient(to right, transparent, #e5e7eb, transparent); margin: 30px 0; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice {{#if isOverdue}}Reminder{{else}}Notification{{/if}}</title>
 </head>
-<body>
-    <div class="email-container">
-        <!-- Header -->
-        <div class="header">
-            <h1>Invoice Ready</h1>
-            <p>Invoice #{{invoiceNumber}}</p>
-        </div>
+<body style="font-family: Arial, sans-serif; background-color: #f6f8fa; color: #333; margin: 0; padding: 0;">
+  <div class="container" style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 0 4px rgba(0,0,0,0.1);">
+    <h1 style="font-size: 20px; margin-bottom: 10px; text-align: center;">{{companyName}}</h1>
 
-        <!-- Content -->
-        <div class="content">
-            <p class="greeting">Dear {{clientName}},</p>
-            
-            <p class="message">
-                {{customMessage}}
-            </p>
+    <div class="amount" style="font-size: 24px; font-weight: bold; color: #222; text-align: center;">${{totalAmount}} AUD</div>
+    {{#if isOverdue}}
+    <div class="overdue" style="color: #d93025; font-weight: 600; text-align: center; margin-bottom: 5px;">Overdue — {{dueDate}}</div>
+    {{else}}
+    <div class="due-date" style="color: #666; font-weight: 600; text-align: center; margin-bottom: 5px;">Due — {{dueDate}}</div>
+    {{/if}}
+    <div class="invoice-num" style="text-align: center; margin-bottom: 20px; font-weight: 500;">Invoice #{{invoiceNumber}}</div>
 
-            <!-- Invoice Details Card -->
-            <div class="invoice-card">
-                <h2>Invoice Summary</h2>
-                
-                <div class="invoice-detail">
-                    <span class="detail-label">Invoice Number</span>
-                    <span class="detail-value">{{invoiceNumber}}</span>
-                </div>
-                
-                <div class="invoice-detail">
-                    <span class="detail-label">Amount Due</span>
-                    <span class="detail-value amount">${{totalAmount}}</span>
-                </div>
-                
-                {{#if dueDate}}
-                <div class="invoice-detail">
-                    <span class="detail-label">Due Date</span>
-                    <span class="detail-value">{{dueDate}}</span>
-                </div>
-                {{/if}}
-            </div>
+    {{#if invoiceUrl}}
+    <a href="{{invoiceUrl}}" class="button" style="display: block; width: 100%; background-color: #000; text-decoration: none; padding: 10px 0; border-radius: 8px; font-weight: 600; text-align: center; margin-top: 15px; margin-bottom: 40px; color: #ffffff;">View Invoice</a>
+    {{/if}}
 
-            <p class="message">
-                The invoice is attached to this email as a PDF document. If you have any questions or concerns regarding this invoice, please don't hesitate to contact us.
-            </p>
+    <p style="line-height: 2; margin: 10px 0px;">Hi{{#if clientName}} {{clientName}}{{/if}},</p>
+    {{#if isOverdue}}
+    <p style="line-height: 2; margin: 10px 0px;">Thanks for working with us. Your bill for <strong>${{totalAmount}}</strong> was due on {{dueDate}}.</p>
+    <p style="line-height: 2; margin: 10px 0px;">If you've already paid it, please ignore this email. If not, please do so as soon as possible.</p>
+    {{else}}
+    <p style="line-height: 2; margin: 10px 0px;">Thanks for working with us. Please find attached your invoice for <strong>${{totalAmount}}</strong> due on {{dueDate}}.</p>
+    {{/if}}
+    {{#if invoiceUrl}}
+    <p style="line-height: 2; margin: 10px 0px;">To view your bill visit the link below:</p>
+    <p style="line-height: 2; margin: 10px 0px;"><a href="{{invoiceUrl}}" target="_blank">{{invoiceUrl}}</a></p>
+    {{/if}}
 
-            <div class="divider"></div>
+    {{#if customMessage}}
+    <p style="line-height: 2; margin: 10px 0px;">{{customMessage}}</p>
+    {{else}}
+    <p style="line-height: 2; margin: 10px 0px;">If you have questions or want to arrange an alternative payment, please get in touch.</p>
+    {{/if}}
+    <p style="line-height: 2; margin: 10px 0px;">Thanks,<br>{{companyName}}</p>
 
-            <p style="font-size: 14px; color: #6b7280;">
-                Thank you for your business!<br><br>
-                <strong style="color: #1f2937;">Imploy Team</strong>
-            </p>
-        </div>
+    {{#if lineItems}}
+    <table style="width: 100%; border-collapse: collapse; margin-top: 40px;" width="100%">
+      <tr>
+        <th style="text-align: left; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #ddd; font-weight: 600;" align="left">Description</th>
+        <th style="text-align: left; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #ddd; font-weight: 600;" align="left">Amount</th>
+      </tr>
+      {{#each lineItems}}
+      {{#if @first}}
+      {{#if ../showAllItems}}
+      <tr>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+      </tr>
+      {{else}}
+      {{#if @index}}<3{{/if}}
+      <tr>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+      </tr>
+      {{/if}}
+      {{else}}
+      {{#if ../showAllItems}}
+      <tr>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+      </tr>
+      {{else}}
+      {{#if @index}}<3{{/if}}
+      <tr>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+      </tr>
+      {{/if}}
+      {{/if}}
+      {{/each}}
+      {{#if remainingItemsCount}}
+      <tr>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">+ {{remainingItemsCount}} more line items</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left"></td>
+      </tr>
+      {{/if}}
+      <tr>
+        <td class="total" style="text-align: left; padding: 10px 0; font-weight: 700; font-size: 16px; padding-top: 10px;" align="left">Amount Due</td>
+        <td class="total" style="text-align: left; padding: 10px 0; font-weight: 700; font-size: 16px; padding-top: 10px;" align="left">AUD ${{totalAmount}}</td>
+      </tr>
+    </table>
+    {{/if}}
 
-        <!-- Footer -->
-        <div class="footer">
-            <p>&copy; {{year}} Imploy. All rights reserved.</p>
-            <p>This is an automated email. Please do not reply directly to this message.</p>
-        </div>
-    </div>
+    {{#if invoiceUrl}}
+    <a href="{{invoiceUrl}}" class="button" style="display: block; width: 100%; background-color: #000; text-decoration: none; padding: 10px 0; border-radius: 8px; font-weight: 600; text-align: center; margin-top: 15px; margin-bottom: 15px; color: #ffffff;">View Invoice</a>
+    {{/if}}
+  </div>
 </body>
 </html>
 

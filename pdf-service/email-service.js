@@ -67,7 +67,11 @@ class EmailService {
             clientName,
             totalAmount,
             dueDate,
-            customMessage
+            customMessage,
+            companyName,
+            lineItems,
+            invoiceUrl,
+            isOverdue
         } = emailData;
 
         // Load and compile email template
@@ -77,15 +81,36 @@ class EmailService {
         try {
             const templateSource = await fs.readFile(templatePath, 'utf-8');
             const template = Handlebars.compile(templateSource);
+            
+            // Prepare line items - show first 3, then "+ X more"
+            let processedLineItems = null;
+            let remainingItemsCount = 0;
+            
+            if (lineItems && Array.isArray(lineItems) && lineItems.length > 0) {
+                if (lineItems.length > 3) {
+                    processedLineItems = lineItems.slice(0, 3);
+                    remainingItemsCount = lineItems.length - 3;
+                } else {
+                    processedLineItems = lineItems;
+                }
+            }
+            
             htmlContent = template({
+                companyName: companyName || 'Imploy',
                 clientName,
                 invoiceNumber,
-                totalAmount,
+                totalAmount: parseFloat(totalAmount || 0).toFixed(2),
                 dueDate,
-                customMessage: customMessage || 'Please find your invoice attached.',
+                customMessage,
+                invoiceUrl,
+                isOverdue: isOverdue || false,
+                lineItems: processedLineItems,
+                remainingItemsCount,
+                showAllItems: false, // Set to true if you want to show all items
                 year: new Date().getFullYear()
             });
         } catch (error) {
+            console.warn('⚠️  Template rendering failed, using fallback:', error.message);
             // Fallback to simple HTML if template not found
             htmlContent = this.getDefaultEmailTemplate(emailData);
         }
