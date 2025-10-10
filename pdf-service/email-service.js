@@ -4,7 +4,7 @@ const path = require('path');
 const Handlebars = require('handlebars');
 require('dotenv').config();
 
-// Register Handlebars helpers
+// Register Handlebars helpers (same as in server.js)
 Handlebars.registerHelper('formatDate', function(date) {
     if (!date) return '';
     const d = new Date(date);
@@ -14,6 +14,14 @@ Handlebars.registerHelper('formatDate', function(date) {
 Handlebars.registerHelper('formatCurrency', function(amount) {
     if (!amount && amount !== 0) return '$0.00';
     return '$' + parseFloat(amount).toFixed(2);
+});
+
+Handlebars.registerHelper('add', function(a, b) {
+    return parseFloat(a || 0) + parseFloat(b || 0);
+});
+
+Handlebars.registerHelper('multiply', function(a, b) {
+    return parseFloat(a || 0) * parseFloat(b || 0);
 });
 
 Handlebars.registerHelper('eq', function(a, b) {
