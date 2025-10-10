@@ -19,7 +19,9 @@ services:
 
   # PDF Service 1
   pdf-service-1:
-    build: ./pdf-service
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile.simple
     container_name: pdf-service-1
     ports:
       - "3001:3001"
@@ -49,7 +51,9 @@ services:
 
   # PDF Service 2
   pdf-service-2:
-    build: ./pdf-service
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile.simple
     container_name: pdf-service-2
     ports:
       - "3002:3001"
@@ -79,7 +83,9 @@ services:
 
   # PDF Service 3
   pdf-service-3:
-    build: ./pdf-service
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile.simple
     container_name: pdf-service-3
     ports:
       - "3003:3001"
@@ -109,7 +115,9 @@ services:
 
   # Queue Workers
   pdf-worker-1:
-    build: ./pdf-service
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile.simple
     container_name: pdf-worker-1
     command: ["node", "worker.js"]
     environment:
@@ -131,7 +139,9 @@ services:
           memory: 512M
 
   pdf-worker-2:
-    build: ./pdf-service
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile.simple
     container_name: pdf-worker-2
     command: ["node", "worker.js"]
     environment:
@@ -154,7 +164,9 @@ services:
 
   # Queue Monitor
   queue-monitor:
-    build: ./pdf-service
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile.simple
     container_name: queue-monitor
     ports:
       - "3004:3004"
