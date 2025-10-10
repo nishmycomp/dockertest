@@ -70,7 +70,7 @@ echo "======================"
 echo "Testing load balancer distribution..."
 
 for i in {1..6}; do
-    response=$(curl -s http://localhost/health 2>/dev/null)
+    response=$(curl -s http://localhost:8080/health 2>/dev/null)
     if [ "$response" = "healthy" ]; then
         print_success "Request $i: Load balancer responding"
     else

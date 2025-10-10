@@ -1,0 +1,190 @@
+version: '3.8'
+
+services:
+  # Redis for queue management
+  redis:
+    image: redis:7-alpine
+    container_name: pdf-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PDF Service 1
+  pdf-service-1:
+    build: ./pdf-service
+    container_name: pdf-service-1
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_ID=1
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    volumes:
+      - ./pdf-service:/app
+      - pdf_storage:/app/storage
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+
+  # PDF Service 2
+  pdf-service-2:
+    build: ./pdf-service
+    container_name: pdf-service-2
+    ports:
+      - "3002:3001"
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_ID=2
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    volumes:
+      - ./pdf-service:/app
+      - pdf_storage:/app/storage
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+
+  # PDF Service 3
+  pdf-service-3:
+    build: ./pdf-service
+    container_name: pdf-service-3
+    ports:
+      - "3003:3001"
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_ID=3
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    volumes:
+      - ./pdf-service:/app
+      - pdf_storage:/app/storage
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+
+  # Queue Workers
+  pdf-worker-1:
+    build: ./pdf-service
+    container_name: pdf-worker-1
+    command: ["node", "worker.js"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WORKER_ID=worker-1
+    volumes:
+      - ./pdf-service:/app
+      - pdf_storage:/app/storage
+    depends_on:
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  pdf-worker-2:
+    build: ./pdf-service
+    container_name: pdf-worker-2
+    command: ["node", "worker.js"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WORKER_ID=worker-2
+    volumes:
+      - ./pdf-service:/app
+      - pdf_storage:/app/storage
+    depends_on:
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # Queue Monitor
+  queue-monitor:
+    build: ./pdf-service
+    container_name: queue-monitor
+    ports:
+      - "3004:3004"
+      - "3005:3005"
+    command: ["node", "monitor.js"]
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MONITOR_PORT=3004
+    volumes:
+      - ./pdf-service:/app
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: pdf-nginx-queue
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-queue.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - pdf-service-1
+      - pdf-service-2
+      - pdf-service-3
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  pdf_storage:
