@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  pdf-service-1:
+    build: ./pdf-service
+    container_name: pdf-service-1
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '1.0'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pdf-network
+
+  pdf-service-2:
+    build: ./pdf-service
+    container_name: pdf-service-2
+    ports:
+      - "3002:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '1.0'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pdf-network
+
+  pdf-service-3:
+    build: ./pdf-service
+    container_name: pdf-service-3
+    ports:
+      - "3003:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '1.0'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pdf-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: pdf-nginx-localhost
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-localhost.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - pdf-service-1
+      - pdf-service-2
+      - pdf-service-3
+    restart: unless-stopped
+    networks:
+      - pdf-network
+
+networks:
+  pdf-network:
+    driver: bridge
