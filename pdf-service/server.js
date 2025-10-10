@@ -139,11 +139,11 @@ app.get('/queue/stats', async (req, res) => {
 // Batch lifecycle endpoints
 app.post('/queue/batch/start', async (req, res) => {
     try {
-        const { tenantId = 'app_imploy_com_au', batchId, total } = req.body || {};
+        const { tenantId = 'app_imploy_com_au', batchId, total, userId } = req.body || {};
         if (!batchId || !Number.isFinite(Number(total))) {
             return res.status(400).json({ success: false, error: 'batchId and total are required' });
         }
-        await queueManager.startBatch(tenantId, String(batchId), Number(total));
+        await queueManager.startBatch(tenantId, String(batchId), Number(total), userId);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -195,6 +195,131 @@ app.post('/generate-invoice-pdf', async (req, res) => {
         res.status(500).json({ 
             error: 'Failed to queue PDF generation job', 
             message: error.message 
+        });
+    }
+});
+
+// Email sending endpoint
+app.post('/send-invoice-email', async (req, res) => {
+    console.log('📧 Received email sending request');
+    
+    try {
+        const { invoice, emailData, tenantId = 'app_imploy_com_au', batchId } = req.body;
+
+        if (!invoice || !emailData || !emailData.to) {
+            return res.status(400).json({ error: 'Invoice data and email recipient are required' });
+        }
+
+        // Add email job to queue
+        const job = await queueManager.addEmailJob(tenantId, invoice, emailData, {
+            priority: 0,
+            delay: 0,
+            batchId: batchId || null
+        });
+
+        console.log(`✅ Email job added to queue: ${job.id} for tenant: ${tenantId}`);
+        
+        res.json({
+            success: true,
+            message: 'Email job queued successfully',
+            jobId: job.id,
+            tenantId: tenantId,
+            status: 'queued',
+            batchId: batchId || null
+        });
+
+    } catch (error) {
+        console.error('❌ Error adding email job to queue:', error);
+        res.status(500).json({ 
+            error: 'Failed to queue email job', 
+            message: error.message 
+        });
+    }
+});
+
+// Bulk email sending endpoint
+app.post('/send-bulk-emails', async (req, res) => {
+    console.log('📧 Received bulk email sending request');
+    
+    try {
+        const { invoices, emailTemplate, tenantId = 'app_imploy_com_au', batchId } = req.body;
+
+        if (!invoices || !Array.isArray(invoices)) {
+            return res.status(400).json({ error: 'Invoices array is required' });
+        }
+
+        const jobIds = [];
+        
+        for (const invoiceWithEmail of invoices) {
+            const { invoice, emailData } = invoiceWithEmail;
+            
+            if (!emailData || !emailData.to) {
+                console.warn(`Skipping invoice ${invoice.invoice_number} - no email recipient`);
+                continue;
+            }
+
+            const job = await queueManager.addEmailJob(tenantId, invoice, emailData, {
+                priority: 0,
+                delay: 0,
+                batchId: batchId || null
+            });
+
+            jobIds.push(job.id);
+        }
+
+        console.log(`✅ ${jobIds.length} email jobs queued for tenant: ${tenantId}`);
+        
+        res.json({
+            success: true,
+            message: `Queued ${jobIds.length} email jobs`,
+            jobIds: jobIds,
+            tenantId: tenantId,
+            batchId: batchId || null
+        });
+
+    } catch (error) {
+        console.error('❌ Error adding bulk email jobs to queue:', error);
+        res.status(500).json({ 
+            error: 'Failed to queue bulk email jobs', 
+            message: error.message 
+        });
+    }
+});
+
+// Verify email configuration
+app.get('/email/verify/:tenantId?', async (req, res) => {
+    try {
+        const tenantId = req.params.tenantId || 'default';
+        const result = await queueManager.verifyEmailConfig(tenantId);
+        
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
+    }
+});
+
+// Get recent errors for a batch or tenant
+app.get('/queue/errors/:tenantId/:batchId?', async (req, res) => {
+    try {
+        const { tenantId, batchId } = req.params;
+        const limit = parseInt(req.query.limit) || 50;
+        
+        const errors = await queueManager.getRecentErrors(tenantId, batchId, limit);
+        
+        res.json({
+            success: true,
+            tenantId,
+            batchId: batchId || null,
+            count: errors.length,
+            errors
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 });

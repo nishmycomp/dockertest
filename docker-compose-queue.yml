@@ -125,6 +125,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - WORKER_ID=worker-1
+      - LARAVEL_URL=${LARAVEL_URL:-http://127.0.0.1:8000}
+      - LARAVEL_API_TOKEN=${LARAVEL_API_TOKEN}
     volumes:
       - ./pdf-service:/app
       - pdf_storage:/app/storage
@@ -149,6 +151,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - WORKER_ID=worker-2
+      - LARAVEL_URL=${LARAVEL_URL:-http://127.0.0.1:8000}
+      - LARAVEL_API_TOKEN=${LARAVEL_API_TOKEN}
     volumes:
       - ./pdf-service:/app
       - pdf_storage:/app/storage

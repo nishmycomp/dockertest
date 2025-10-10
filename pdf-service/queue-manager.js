@@ -1,5 +1,10 @@
 const Queue = require('bull');
 const Redis = require('redis');
+const EmailService = require('./email-service');
+const puppeteer = require('puppeteer');
+const Handlebars = require('handlebars');
+const fs = require('fs').promises;
+const path = require('path');
 
 class QueueManager {
     constructor() {
@@ -16,8 +21,11 @@ class QueueManager {
 
         this.queues = new Map();
         this.tenantConfigs = new Map();
+        this.emailService = new EmailService();
+        this.browser = null;
         
         this.initializeTenants();
+        this.initializeBrowser();
     }
 
     initializeTenants() {
@@ -57,22 +65,44 @@ class QueueManager {
             },
             defaultJobOptions: {
                 removeOnComplete: 100,
-                removeOnFail: 50,
-                attempts: 3,
+                removeOnFail: 100, // Keep failed jobs for debugging
+                attempts: 2, // Reduced to 2 attempts (1 initial + 1 retry)
                 backoff: {
                     type: 'exponential',
-                    delay: 2000
+                    delay: 3000
                 }
             }
         });
 
         // Rate limiting
         queue.process('generate-pdf', config.concurrency, async (job) => {
-            return await this.processPdfJob(job, tenantId);
+            try {
+                return await this.processPdfJob(job, tenantId);
+            } catch (error) {
+                // Even if processPdfJob throws, log and continue
+                console.error(`⚠️  Unhandled PDF job error:`, error.message);
+                return { success: false, error: error.message };
+            }
         });
 
         queue.process('send-email', 2, async (job) => {
-            return await this.processEmailJob(job, tenantId);
+            try {
+                return await this.processEmailJob(job, tenantId);
+            } catch (error) {
+                // Even if processEmailJob throws, log and continue
+                console.error(`⚠️  Unhandled email job error:`, error.message);
+                return { success: false, error: error.message };
+            }
+        });
+
+        // Error event handlers
+        queue.on('failed', (job, error) => {
+            console.error(`❌ Job ${job.id} failed after all retries:`, error.message);
+            // Job will be kept in failed queue for review
+        });
+
+        queue.on('error', (error) => {
+            console.error(`❌ Queue error for ${config.name}:`, error.message);
         });
 
         this.queues.set(tenantId, queue);
@@ -113,11 +143,20 @@ class QueueManager {
         return `batch:${tenantId}:${batchId}`;
     }
 
-    async startBatch(tenantId, batchId, total) {
+    async startBatch(tenantId, batchId, total, userId = null) {
         if (!tenantId || !batchId || !Number.isFinite(Number(total))) return;
         const key = this.getBatchKey(tenantId, batchId);
         // Initialize if not exists; always set total to latest provided
-        await this.hSetCompat(key, { total: total, completed: 0, failed: 0, createdAt: Date.now() });
+        const batchData = { 
+            total: total, 
+            completed: 0, 
+            failed: 0, 
+            createdAt: Date.now()
+        };
+        if (userId) {
+            batchData.userId = userId;
+        }
+        await this.hSetCompat(key, batchData);
     }
 
     async incrBatchCompleted(tenantId, batchId) {
@@ -163,6 +202,8 @@ class QueueManager {
                 await this.incrBatchCompleted(tenantId, batchId).catch(() => {});
             }
 
+            console.log(`✅ PDF generated successfully: ${invoiceData.invoice_number}`);
+
             return {
                 success: true,
                 pdfPath,
@@ -170,51 +211,277 @@ class QueueManager {
                 invoiceNumber: invoiceData.invoice_number
             };
         } catch (error) {
-            console.error(`❌ PDF generation failed for ${config.name}:`, error);
+            console.error(`❌ PDF generation failed for ${config.name}:`, error.message);
+            
+            // Update batch failed counter
             if (batchId) {
                 await this.incrBatchFailed(tenantId, batchId).catch(() => {});
             }
-            throw error;
+            
+            // Log error but don't throw - this allows the batch to continue
+            await this.logJobError(tenantId, 'pdf', invoiceData.invoice_number, error.message, batchId);
+            
+            // Return error result instead of throwing
+            return {
+                success: false,
+                error: error.message,
+                tenantId,
+                invoiceNumber: invoiceData.invoice_number
+            };
         }
     }
 
     async processEmailJob(job, tenantId) {
-        const { invoiceData, emailData, pdfPath } = job.data;
+        const { invoiceData, emailData, pdfPath, batchId } = job.data;
         const config = this.tenantConfigs.get(tenantId);
         
-        console.log(`📧 Sending email for tenant ${config.name}: ${invoiceData.invoice_number}`);
+        console.log(`📧 Sending email for tenant ${config.name}: ${invoiceData.invoice_number} to ${emailData.to}`);
         
         try {
-            // Email sending logic here
-            await this.sendEmail(emailData, pdfPath, tenantId);
+            // Validate email address
+            if (!emailData || !emailData.to) {
+                throw new Error('No recipient email address provided');
+            }
+            
+            // Generate PDF buffer for email attachment
+            let pdfBuffer = null;
+            
+            if (invoiceData) {
+                pdfBuffer = await this.generatePdf(invoiceData, tenantId);
+            }
+            
+            // Send email with PDF attachment
+            const result = await this.emailService.sendInvoiceEmail(
+                tenantId,
+                emailData,
+                pdfBuffer
+            );
+            
+            // Update batch counters if provided
+            if (batchId) {
+                await this.incrBatchCompleted(tenantId, batchId).catch(() => {});
+            }
+            
+            console.log(`✅ Email sent successfully: ${invoiceData.invoice_number} to ${emailData.to}`);
             
             return {
                 success: true,
                 tenantId,
                 invoiceNumber: invoiceData.invoice_number,
-                emailSent: true
+                emailSent: true,
+                messageId: result.messageId,
+                recipient: emailData.to
             };
         } catch (error) {
-            console.error(`❌ Email sending failed for ${config.name}:`, error);
-            throw error;
+            console.error(`❌ Email sending failed for ${config.name}:`, error.message);
+            
+            // Update batch failed counter
+            if (batchId) {
+                await this.incrBatchFailed(tenantId, batchId).catch(() => {});
+            }
+            
+            // Log error but don't throw - this allows the batch to continue
+            await this.logJobError(tenantId, 'email', invoiceData.invoice_number, error.message, batchId, emailData.to);
+            
+            // Return error result instead of throwing
+            return {
+                success: false,
+                error: error.message,
+                tenantId,
+                invoiceNumber: invoiceData.invoice_number,
+                emailSent: false,
+                recipient: emailData.to || 'unknown'
+            };
         }
     }
 
+    async initializeBrowser() {
+        try {
+            const launchOptions = {
+                headless: 'new',
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-extensions'
+                ],
+                timeout: 120000
+            };
+
+            if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+                launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+            }
+
+            this.browser = await puppeteer.launch(launchOptions);
+            console.log('✅ Browser initialized for PDF generation');
+            
+            this.browser.on('disconnected', () => {
+                console.log('⚠️  Browser disconnected, will restart on next request');
+                this.browser = null;
+            });
+        } catch (error) {
+            console.error('❌ Failed to initialize browser:', error);
+        }
+    }
+
+    async getBrowser() {
+        if (this.browser && this.browser.isConnected()) {
+            return this.browser;
+        }
+        await this.initializeBrowser();
+        return this.browser;
+    }
+
     async generatePdf(invoiceData, tenantId) {
-        // PDF generation logic using Puppeteer
-        // This would use the existing PDF generation code
-        // but with tenant-specific templates and configurations
-        return Buffer.from('mock-pdf-data');
+        try {
+            const browser = await this.getBrowser();
+            const page = await browser.newPage();
+            
+            // Load and compile template
+            const templatePath = path.join(__dirname, 'templates', 'invoice-template.hbs');
+            const templateSource = await fs.readFile(templatePath, 'utf-8');
+            const template = Handlebars.compile(templateSource);
+            
+            // Generate HTML from template
+            const html = template(invoiceData);
+            
+            await page.setContent(html, {
+                waitUntil: 'networkidle0',
+                timeout: 30000
+            });
+            
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: {
+                    top: '20mm',
+                    right: '15mm',
+                    bottom: '20mm',
+                    left: '15mm'
+                }
+            });
+            
+            await page.close();
+            
+            return pdfBuffer;
+        } catch (error) {
+            console.error('❌ PDF generation error:', error);
+            throw error;
+        }
     }
 
     async storePdf(pdfBuffer, path) {
         // Store PDF to file system or cloud storage
         console.log(`💾 Storing PDF: ${path}`);
+        // TODO: Implement actual storage logic (S3, local filesystem, etc.)
     }
 
-    async sendEmail(emailData, pdfPath, tenantId) {
-        // Email sending logic with tenant-specific SMTP settings
-        console.log(`📧 Sending email to: ${emailData.to}`);
+    async logJobError(tenantId, jobType, invoiceNumber, errorMessage, batchId, recipient = null) {
+        try {
+            const errorKey = `errors:${tenantId}:${batchId || 'individual'}`;
+            const errorData = JSON.stringify({
+                jobType,
+                invoiceNumber,
+                errorMessage,
+                recipient,
+                timestamp: new Date().toISOString(),
+                batchId
+            });
+
+            // Store error in Redis list (latest errors)
+            if (typeof this.redis.lPush === 'function') {
+                await this.redis.lPush(errorKey, errorData);
+                await this.redis.lTrim(errorKey, 0, 99); // Keep last 100 errors
+                await this.redis.expire(errorKey, 86400 * 7); // Expire after 7 days
+            } else {
+                // v3 style
+                await new Promise((resolve) => this.redis.lpush(errorKey, errorData, resolve));
+                await new Promise((resolve) => this.redis.ltrim(errorKey, 0, 99, resolve));
+                await new Promise((resolve) => this.redis.expire(errorKey, 86400 * 7, resolve));
+            }
+
+            console.log(`📝 Error logged: ${jobType} for ${invoiceNumber}`);
+            
+            // Send notification to Laravel app inbox
+            await this.sendFailureNotification(tenantId, jobType, invoiceNumber, errorMessage, batchId, recipient);
+        } catch (error) {
+            console.error('Failed to log error to Redis:', error.message);
+        }
+    }
+
+    async sendFailureNotification(tenantId, jobType, invoiceNumber, errorMessage, batchId, recipient = null) {
+        try {
+            // Determine the Laravel app URL based on tenant
+            const laravelUrl = this.getLaravelUrl(tenantId);
+            
+            // Get userId from batch if available
+            let userId = null;
+            if (batchId) {
+                const batchStatus = await this.getBatchStatus(tenantId, batchId);
+                userId = batchStatus?.userId || null;
+            }
+            
+            const axios = require('axios');
+            const notificationPayload = {
+                jobType,
+                invoiceNumber,
+                errorMessage,
+                recipient,
+                batchId,
+                tenantId,
+                userId
+            };
+
+            const response = await axios.post(
+                `${laravelUrl}/api/queue/notification/job-failed`,
+                notificationPayload,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-API-TOKEN': process.env.LARAVEL_API_TOKEN || ''
+                    },
+                    timeout: 5000 // 5 second timeout
+                }
+            );
+
+            console.log(`📬 Failure notification sent to Laravel: ${response.data.message} (userId: ${userId || 'N/A'})`);
+        } catch (error) {
+            console.error('⚠️ Failed to send notification to Laravel:', error.message);
+            // Don't throw - notification failure shouldn't stop the job processing
+        }
+    }
+
+    getLaravelUrl(tenantId) {
+        // Map tenant IDs to Laravel app URLs
+        const tenantUrls = {
+            'app_imploy_com_au': process.env.LARAVEL_URL || 'http://127.0.0.1:8000',
+            'tenant_2': 'http://tenant2.example.com'
+            // Add more tenant URLs as needed
+        };
+
+        return tenantUrls[tenantId] || process.env.LARAVEL_URL || 'http://127.0.0.1:8000';
+    }
+
+    async getRecentErrors(tenantId, batchId = null, limit = 50) {
+        try {
+            const errorKey = `errors:${tenantId}:${batchId || 'individual'}`;
+            
+            let errors;
+            if (typeof this.redis.lRange === 'function') {
+                errors = await this.redis.lRange(errorKey, 0, limit - 1);
+            } else {
+                errors = await new Promise((resolve, reject) => 
+                    this.redis.lrange(errorKey, 0, limit - 1, (e, res) => e ? reject(e) : resolve(res))
+                );
+            }
+
+            return errors ? errors.map(e => JSON.parse(e)) : [];
+        } catch (error) {
+            console.error('Failed to get errors from Redis:', error.message);
+            return [];
+        }
     }
 
     // Queue management methods
@@ -235,7 +502,7 @@ class QueueManager {
         });
     }
 
-    async addEmailJob(tenantId, invoiceData, emailData, pdfPath) {
+    async addEmailJob(tenantId, invoiceData, emailData, options = {}) {
         const queue = this.queues.get(tenantId);
         if (!queue) {
             throw new Error(`Queue not found for tenant: ${tenantId}`);
@@ -244,9 +511,16 @@ class QueueManager {
         return await queue.add('send-email', {
             invoiceData,
             emailData,
-            pdfPath,
-            tenantId
+            tenantId,
+            batchId: options.batchId || null
+        }, {
+            priority: options.priority || 0,
+            delay: options.delay || 0
         });
+    }
+
+    async verifyEmailConfig(tenantId = 'default') {
+        return await this.emailService.verifyConnection(tenantId);
     }
 
     async getQueueStats(tenantId) {
