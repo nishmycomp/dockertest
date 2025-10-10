@@ -4,6 +4,22 @@ const path = require('path');
 const Handlebars = require('handlebars');
 require('dotenv').config();
 
+// Register Handlebars helpers
+Handlebars.registerHelper('formatDate', function(date) {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: 'numeric' });
+});
+
+Handlebars.registerHelper('formatCurrency', function(amount) {
+    if (!amount && amount !== 0) return '$0.00';
+    return '$' + parseFloat(amount).toFixed(2);
+});
+
+Handlebars.registerHelper('eq', function(a, b) {
+    return a === b;
+});
+
 class EmailService {
     constructor() {
         this.transporters = new Map();
