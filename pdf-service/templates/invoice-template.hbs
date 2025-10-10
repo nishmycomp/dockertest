@@ -195,27 +195,23 @@
         
         .item-meta {
             font-size: 11px;
-            color: #9CA3AF;
-        }
-        
-        .item-type-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #F3F4F6;
-            border-radius: 3px;
-            font-size: 10px;
             color: #6B7280;
+            background: #F3F4F6;
+            padding: 2px 8px;
+            border-radius: 3px;
+            display: inline-block;
             margin-top: 3px;
         }
         
-        .appointment-type-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #DBEAFE;
-            border-radius: 3px;
-            font-size: 10px;
-            color: #1E40AF;
+        .gst-badge {
+            font-size: 11px;
             font-weight: 600;
+            color: #15803D;
+        }
+        
+        .no-gst-badge {
+            font-size: 11px;
+            color: #9CA3AF;
         }
         
         .totals-section {
@@ -279,6 +275,43 @@
             font-size: 13px;
             color: #6B7280;
             line-height: 1.6;
+        }
+        
+        .payment-footer {
+            margin-top: 40px;
+            padding: 20px;
+            background: #F9FAFB;
+            border-radius: 6px;
+            border-top: 2px solid #E5E7EB;
+        }
+        
+        .payment-grid {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .payment-section {
+            width: 48%;
+        }
+        
+        .payment-section h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 8px;
+        }
+        
+        .payment-section p {
+            font-size: 12px;
+            color: #4B5563;
+            margin-bottom: 3px;
+            line-height: 1.6;
+        }
+        
+        .payment-section strong {
+            font-weight: 600;
+            color: #1F2937;
         }
         
         .footer {
@@ -384,15 +417,10 @@
         <table class="line-items-table">
             <thead>
                 <tr>
-                    <th>Description</th>
-                    {{#if line_items.0.service_date}}
-                    <th class="text-center">Service Date</th>
-                    {{/if}}
-                    {{#if line_items.0.appointment_type}}
-                    <th class="text-center">Type</th>
-                    {{/if}}
+                    <th>Item</th>
                     <th class="text-center">Qty</th>
                     <th class="text-right">Unit Price</th>
+                    <th class="text-center">GST</th>
                     <th class="text-right">Total</th>
                 </tr>
             </thead>
@@ -401,22 +429,19 @@
                 <tr>
                     <td>
                         <div class="item-description">{{this.description}}</div>
-                        {{#if this.entry_type}}
-                        <span class="item-type-badge">{{this.entry_type}}</span>
+                        {{#if this.service_date}}
+                        <div class="item-meta">{{this.service_date}}</div>
                         {{/if}}
                     </td>
-                    {{#if this.service_date}}
-                    <td class="text-center">
-                        <span class="item-meta">{{this.service_date}}</span>
-                    </td>
-                    {{/if}}
-                    {{#if this.appointment_type}}
-                    <td class="text-center">
-                        <span class="appointment-type-badge">{{this.appointment_type}}</span>
-                    </td>
-                    {{/if}}
                     <td class="text-center">{{this.quantity}}</td>
                     <td class="text-right">{{formatCurrency this.unit_price}}</td>
+                    <td class="text-center">
+                        {{#if this.gst_applicable}}
+                        <span class="gst-badge">{{../gst_rate}}%</span>
+                        {{else}}
+                        <span class="no-gst-badge">No GST</span>
+                        {{/if}}
+                    </td>
                     <td class="text-right">{{formatCurrency (multiply this.quantity this.unit_price)}}</td>
                 </tr>
                 {{/each}}
@@ -429,9 +454,15 @@
                 <span class="total-label">Subtotal:</span>
                 <span class="total-value">{{formatCurrency subtotal}}</span>
             </div>
+            {{#if gst_amount}}
+            <div class="total-row">
+                <span class="total-label">GST ({{gst_rate}}%):</span>
+                <span class="total-value">{{formatCurrency gst_amount}}</span>
+            </div>
+            {{/if}}
             {{#if tax_amount}}
             <div class="total-row">
-                <span class="total-label">Tax ({{tax_rate}}%):</span>
+                <span class="total-label">Other Tax:</span>
                 <span class="total-value">{{formatCurrency tax_amount}}</span>
             </div>
             {{/if}}
@@ -454,6 +485,33 @@
             <div class="notes-content">{{notes}}</div>
         </div>
         {{/if}}
+
+        <!-- Payment Details Footer -->
+        <div class="payment-footer">
+            <div class="payment-grid">
+                <div class="payment-section">
+                    <h4>Due Date:</h4>
+                    <p>{{formatDate due_date}}</p>
+                </div>
+                <div class="payment-section">
+                    <h4>Payment Details:</h4>
+                    <p><strong>Account Name:</strong> My Companionship</p>
+                    <p><strong>BSB:</strong> 062-692</p>
+                    <p><strong>Account Number:</strong> 8040 6719</p>
+                </div>
+            </div>
+            
+            <div class="payment-section">
+                <h4>Payment Terms:</h4>
+                <p>All invoices are due within 5 days from the date of issuance.</p>
+            </div>
+            
+            <div class="payment-section" style="margin-top: 15px;">
+                <h4>Late Fees:</h4>
+                <p>• Payments not received within 10 days after the due date will incur a 5% late fee.</p>
+                <p>• An additional 1% late fee will be applied for each week the payment remains overdue.</p>
+            </div>
+        </div>
 
         <!-- Footer -->
         <div class="footer">
