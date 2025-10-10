@@ -39,8 +39,8 @@ print_status "Docker is running ✓"
 print_status "Stopping existing PDF services..."
 docker stop pdf-service 2>/dev/null || true
 docker rm pdf-service 2>/dev/null || true
-docker-compose -f docker-compose-multi.yml down 2>/dev/null || true
-docker-compose -f docker-compose-ssl.yml down 2>/dev/null || true
+docker compose -f docker-compose-multi.yml down 2>/dev/null || true
+docker compose -f docker-compose-ssl.yml down 2>/dev/null || true
 
 # Build the PDF service image
 print_status "Building PDF service image..."
@@ -55,7 +55,7 @@ fi
 
 # Start the localhost multi-instance setup
 print_status "Starting localhost multi-instance PDF services..."
-docker-compose -f docker-compose-localhost.yml up -d
+docker compose -f docker-compose-localhost.yml up -d
 
 if [ $? -eq 0 ]; then
     print_success "Localhost multi-instance PDF services started successfully"
@@ -112,10 +112,10 @@ echo "  • 15-20 concurrent users capacity"
 echo "  • No SSL (localhost only)"
 echo ""
 print_status "To monitor logs:"
-echo "  docker-compose -f docker-compose-localhost.yml logs -f"
+echo "  docker compose -f docker-compose-localhost.yml logs -f"
 echo ""
 print_status "To stop services:"
-echo "  docker-compose -f docker-compose-localhost.yml down"
+echo "  docker compose -f docker-compose-localhost.yml down"
 echo ""
 print_warning "Update your Laravel .env file:"
 echo "  PDF_SERVICE_URL=http://localhost:80"
