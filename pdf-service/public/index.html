@@ -121,6 +121,9 @@
   </div>
 
   <script>
+    // Determine API base depending on how the dashboard is served
+    const isProxied = window.location.pathname.startsWith('/queue');
+    const API_BASE = isProxied ? '/queue/api' : '/api';
     const statusPill = document.getElementById('status-pill');
     const tenantSelect = document.getElementById('tenant-select');
     const sumWaiting = document.getElementById('sum-waiting');
@@ -206,7 +209,7 @@
 
     async function loadStats() {
       try {
-        const data = await fetchJSON('/queue/stats');
+        const data = await fetchJSON(`${API_BASE}/stats`);
         if (!data.success) throw new Error('Stats failed');
         renderSummary(data.data);
         renderTenantCards(data.data);
@@ -234,7 +237,7 @@
         return;
       }
       try {
-        const res = await fetch('/queue/batch/start', {
+        const res = await fetch(`${API_BASE}/batch/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tenantId, batchId, total })
@@ -253,7 +256,7 @@
       if (batchPollTimer) clearInterval(batchPollTimer);
       const updateOnce = async () => {
         try {
-          const res = await fetch(`/queue/batch/${tenantId}/${batchId}`);
+          const res = await fetch(`${API_BASE}/batch/${tenantId}/${batchId}`);
           const data = await res.json();
           if (!data.success) throw new Error();
           const total = data.data.total || declaredTotal || 0;
