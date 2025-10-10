@@ -47,35 +47,34 @@ Handlebars.registerHelper('eq', function(a, b) {
 let browserPromise = null;
 
 async function getBrowser() {
-    // Minimal, ultra-stable config for cloud environments
+    // Ultra-minimal config for Alpine Linux + Chromium
     const launchOptions = {
-        headless: true, // Use classic headless (more stable than 'new')
+        headless: 'new', // Use new headless mode
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--single-process', // Run in single process (less memory, more stable)
-            '--no-zygote', // Disable zygote process
-            '--disable-accelerated-2d-canvas',
-            '--disable-dev-tools',
-            '--disable-software-rasterizer'
+            '--disable-extensions',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding'
         ],
-        timeout: 180000, // 3 minutes
-        dumpio: true, // Log Chromium output for debugging
-        protocolTimeout: 180000
+        timeout: 120000, // 2 minutes
+        dumpio: false
     };
 
-    // Only set executablePath if explicitly provided (for Docker/Linux)
+    // Use Chromium from Alpine package
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
     }
 
-    console.log('🚀 Launching browser with minimal config...');
+    console.log('🚀 Launching Chromium with Alpine-optimized config...');
+    console.log('   Executable:', launchOptions.executablePath || 'default');
     console.log('   Args:', launchOptions.args.join(' '));
     
     const browser = await puppeteer.launch(launchOptions);
-    console.log('✅ Browser launched successfully!');
+    console.log('✅ Chromium launched successfully!');
     
     return browser;
 }
