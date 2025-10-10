@@ -80,6 +80,10 @@
         <div class="w-full bg-gray-100 rounded h-2 overflow-hidden">
           <div id="batch-progress-bar" class="h-2 bg-gradient-to-r from-[#412e80] to-[#bc1b8d]" style="width: 0%"></div>
         </div>
+        <div class="mt-2 text-xs text-gray-600">
+          <span>Current batch:</span>
+          <span id="batch-current-id" class="font-medium text-[#412e80]">—</span>
+        </div>
       </div>
     </div>
 
@@ -95,7 +99,7 @@
     <div id="tenant-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
 
     <!-- Job lists -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="bg-white border border-gray-200 rounded">
         <div class="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 class="text-sm font-medium">Recent Completed</h2>
@@ -112,6 +116,15 @@
         </div>
         <div id="failed-list" class="p-4 text-sm text-gray-700 space-y-2">
           <div class="text-gray-500">No data</div>
+        </div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 class="text-sm font-medium">Queue Logs</h2>
+          <button id="logs-clear" class="text-xs text-[#794d9a] hover:text-[#6e448d]">Clear</button>
+        </div>
+        <div id="logs-list" class="p-4 text-xs text-gray-700 space-y-1 max-h-64 overflow-auto">
+          <div class="text-gray-500">No logs</div>
         </div>
       </div>
     </div>
@@ -227,6 +240,22 @@
     const batchProgressCount = document.getElementById('batch-progress-count');
     const batchProgressLabel = document.getElementById('batch-progress-label');
     let batchPollTimer = null;
+    const logsList = document.getElementById('logs-list');
+    const logsClearBtn = document.getElementById('logs-clear');
+    const batchCurrentId = document.getElementById('batch-current-id');
+
+    function addLog(message, level = 'info') {
+      const ts = new Date().toLocaleTimeString();
+      const row = document.createElement('div');
+      const color = level === 'error' ? 'text-red-600' : (level === 'success' ? 'text-green-700' : 'text-gray-700');
+      row.className = `${color}`;
+      row.textContent = `[${ts}] ${message}`;
+      if (logsList.firstElementChild && logsList.firstElementChild.classList.contains('text-gray-500')) {
+        logsList.innerHTML = '';
+      }
+      logsList.appendChild(row);
+      logsList.scrollTop = logsList.scrollHeight;
+    }
 
     async function startBatch() {
       const tenantId = tenantSelect.value;
@@ -245,10 +274,13 @@
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Start failed');
         showToast('Batch started', 'success');
+        addLog(`Batch started: ${batchId} (total ${total})`, 'success');
+        batchCurrentId.textContent = batchId;
         batchProgressWrap.classList.remove('hidden');
         pollBatch(tenantId, batchId, total);
       } catch (e) {
         showToast('Failed to start batch', 'error');
+        addLog(`Failed to start batch: ${e.message || e}`, 'error');
       }
     }
 
@@ -267,8 +299,10 @@
           batchProgressBar.style.width = pct + '%';
           batchProgressCount.textContent = `${done} / ${total}`;
           batchProgressLabel.textContent = failed > 0 ? `Batch progress (failed: ${failed})` : 'Batch progress';
+          addLog(`Batch ${batchId}: ${done}/${total} (failed ${failed})`);
           if (done >= total && total > 0) {
             clearInterval(batchPollTimer);
+            addLog(`Batch ${batchId} completed`, 'success');
           }
         } catch (_) {
           // ignore transient errors
@@ -285,9 +319,11 @@
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Action failed');
         showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} successful`, 'success');
+        addLog(`Tenant ${tenantId}: ${action} successful`, 'success');
         loadStats();
       } catch (e) {
         showToast(`Failed to ${action}`, 'error');
+        addLog(`Tenant ${tenantId}: ${action} failed`, 'error');
       }
     }
 
@@ -313,6 +349,7 @@
     pauseBtn.addEventListener('click', () => tenantAction('pause'));
     resumeBtn.addEventListener('click', () => tenantAction('resume'));
     clearBtn.addEventListener('click', () => tenantAction('clear'));
+    logsClearBtn.addEventListener('click', () => { logsList.innerHTML = '<div class="text-gray-500">No logs</div>'; });
 
     // Initial
     loadStats();
