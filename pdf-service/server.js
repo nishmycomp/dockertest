@@ -43,44 +43,46 @@ Handlebars.registerHelper('eq', function(a, b) {
     return a === b;
 });
 
-// Browser instance pool
-let browser = null;
+// Browser instance pool - use disposable instances for cloud stability
+let browserPromise = null;
+
 async function getBrowser() {
-    if (!browser) {
-        const launchOptions = {
-            headless: 'new',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--no-first-run',
-                '--disable-extensions',
-                '--disable-background-timer-throttling',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding'
-            ],
-            timeout: 60000
-        };
+    // Minimal, ultra-stable config for cloud environments
+    const launchOptions = {
+        headless: true, // Use classic headless (more stable than 'new')
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process', // Run in single process (less memory, more stable)
+            '--no-zygote', // Disable zygote process
+            '--disable-accelerated-2d-canvas',
+            '--disable-dev-tools',
+            '--disable-software-rasterizer'
+        ],
+        timeout: 180000, // 3 minutes
+        dumpio: true, // Log Chromium output for debugging
+        protocolTimeout: 180000
+    };
 
-        // Only set executablePath if explicitly provided (for Docker/Linux)
-        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-            launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-        }
-
-        console.log('Launching browser with cloud-optimized settings...');
-        browser = await puppeteer.launch(launchOptions);
-        console.log('Browser launched successfully');
+    // Only set executablePath if explicitly provided (for Docker/Linux)
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
     }
+
+    console.log('🚀 Launching browser with minimal config...');
+    console.log('   Args:', launchOptions.args.join(' '));
+    
+    const browser = await puppeteer.launch(launchOptions);
+    console.log('✅ Browser launched successfully!');
+    
     return browser;
 }
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-    console.log('SIGTERM received, closing browser...');
-    if (browser) {
-        await browser.close();
-    }
+    console.log('🛑 SIGTERM received, shutting down gracefully...');
     process.exit(0);
 });
 
@@ -91,7 +93,9 @@ app.get('/health', (req, res) => {
 
 // Main PDF generation endpoint
 app.post('/generate-invoice-pdf', async (req, res) => {
-    console.log('Received PDF generation request');
+    console.log('📥 Received PDF generation request');
+    let browserInstance = null;
+    let page = null;
     
     try {
         const { invoice } = req.body;
@@ -108,12 +112,13 @@ app.post('/generate-invoice-pdf', async (req, res) => {
         // Generate HTML from template
         const html = template(invoice);
 
-        // Launch browser and create PDF
-        const browserInstance = await getBrowser();
-        const page = await browserInstance.newPage();
+        // Launch browser and create PDF (disposable instance)
+        browserInstance = await getBrowser();
+        page = await browserInstance.newPage();
 
         await page.setContent(html, {
-            waitUntil: 'networkidle0'
+            waitUntil: 'networkidle0',
+            timeout: 30000
         });
 
         const pdfBuffer = await page.pdf({
@@ -128,6 +133,7 @@ app.post('/generate-invoice-pdf', async (req, res) => {
         });
 
         await page.close();
+        await browserInstance.close(); // Close browser after use
 
         // Send PDF as response
         res.setHeader('Content-Type', 'application/pdf');
@@ -135,10 +141,15 @@ app.post('/generate-invoice-pdf', async (req, res) => {
         res.setHeader('Content-Length', pdfBuffer.length);
         res.send(pdfBuffer);
 
-        console.log(`PDF generated successfully for invoice ${invoice.invoice_number}`);
+        console.log(`✅ PDF generated successfully for invoice ${invoice.invoice_number}`);
 
     } catch (error) {
-        console.error('Error generating PDF:', error);
+        console.error('❌ Error generating PDF:', error);
+        
+        // Cleanup on error
+        if (page) await page.close().catch(() => {});
+        if (browserInstance) await browserInstance.close().catch(() => {});
+        
         res.status(500).json({ 
             error: 'Failed to generate PDF', 
             message: error.message 
@@ -148,7 +159,7 @@ app.post('/generate-invoice-pdf', async (req, res) => {
 
 // Batch PDF generation endpoint
 app.post('/generate-batch-pdf', async (req, res) => {
-    console.log('Received batch PDF generation request');
+    console.log('📥 Received batch PDF generation request');
     
     try {
         const { invoices } = req.body;
@@ -158,9 +169,11 @@ app.post('/generate-batch-pdf', async (req, res) => {
         }
 
         const results = [];
-        const browserInstance = await getBrowser();
 
         for (const invoice of invoices) {
+            let browserInstance = null;
+            let page = null;
+            
             try {
                 // Load and compile template
                 const templatePath = path.join(__dirname, 'templates', 'invoice-template.hbs');
@@ -170,9 +183,14 @@ app.post('/generate-batch-pdf', async (req, res) => {
                 // Generate HTML from template
                 const html = template(invoice);
 
-                // Create PDF
-                const page = await browserInstance.newPage();
-                await page.setContent(html, { waitUntil: 'networkidle0' });
+                // Create fresh browser for each PDF
+                browserInstance = await getBrowser();
+                page = await browserInstance.newPage();
+                
+                await page.setContent(html, { 
+                    waitUntil: 'networkidle0',
+                    timeout: 30000
+                });
 
                 const pdfBuffer = await page.pdf({
                     format: 'A4',
@@ -186,6 +204,7 @@ app.post('/generate-batch-pdf', async (req, res) => {
                 });
 
                 await page.close();
+                await browserInstance.close(); // Close after each PDF
 
                 results.push({
                     invoice_number: invoice.invoice_number,
@@ -193,10 +212,15 @@ app.post('/generate-batch-pdf', async (req, res) => {
                     pdf: pdfBuffer.toString('base64')
                 });
 
-                console.log(`PDF generated for invoice ${invoice.invoice_number}`);
+                console.log(`✅ PDF generated for invoice ${invoice.invoice_number}`);
 
             } catch (error) {
-                console.error(`Error generating PDF for invoice ${invoice.invoice_number}:`, error);
+                console.error(`❌ Error generating PDF for invoice ${invoice.invoice_number}:`, error);
+                
+                // Cleanup on error
+                if (page) await page.close().catch(() => {});
+                if (browserInstance) await browserInstance.close().catch(() => {});
+                
                 results.push({
                     invoice_number: invoice.invoice_number,
                     success: false,
@@ -213,10 +237,10 @@ app.post('/generate-batch-pdf', async (req, res) => {
             failed: results.filter(r => !r.success).length
         });
 
-        console.log(`Batch PDF generation completed: ${results.filter(r => r.success).length}/${invoices.length}`);
+        console.log(`📊 Batch PDF generation completed: ${results.filter(r => r.success).length}/${invoices.length}`);
 
     } catch (error) {
-        console.error('Error in batch PDF generation:', error);
+        console.error('❌ Error in batch PDF generation:', error);
         res.status(500).json({ 
             error: 'Failed to generate batch PDFs', 
             message: error.message 
