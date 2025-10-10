@@ -45,7 +45,7 @@ services=(
     "pdf-service-1:3001"
     "pdf-service-2:3002" 
     "pdf-service-3:3003"
-    "nginx:80"
+    "nginx:8080"
 )
 
 for service in "${services[@]}"; do
@@ -82,7 +82,7 @@ done
 echo ""
 print_header "Service URLs:"
 echo "=============="
-echo "• Load Balancer: http://localhost:80"
+echo "• Load Balancer: http://localhost:8080"
 echo "• PDF Service 1: http://localhost:3001"
 echo "• PDF Service 2: http://localhost:3002"
 echo "• PDF Service 3: http://localhost:3003"

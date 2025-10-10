@@ -71,7 +71,7 @@ sleep 30
 # Check health of all services
 print_status "Checking service health..."
 
-services=("pdf-service-1:3001" "pdf-service-2:3002" "pdf-service-3:3003" "nginx:80")
+services=("pdf-service-1:3001" "pdf-service-2:3002" "pdf-service-3:3003" "nginx:8080")
 
 for service in "${services[@]}"; do
     name=$(echo $service | cut -d: -f1)
@@ -92,13 +92,13 @@ echo ""
 print_success "🎉 Localhost Multi-Instance PDF Service Setup Complete!"
 echo ""
 print_status "Service URLs:"
-echo "  • Load Balancer: http://localhost:80"
+echo "  • Load Balancer: http://localhost:8080"
 echo "  • PDF Service 1: http://localhost:3001"
 echo "  • PDF Service 2: http://localhost:3002"
 echo "  • PDF Service 3: http://localhost:3003"
 echo ""
 print_status "Health Check URLs:"
-echo "  • Load Balancer: http://localhost/health"
+echo "  • Load Balancer: http://localhost:8080/health"
 echo "  • PDF Service 1: http://localhost:3001/health"
 echo "  • PDF Service 2: http://localhost:3002/health"
 echo "  • PDF Service 3: http://localhost:3003/health"
@@ -118,6 +118,6 @@ print_status "To stop services:"
 echo "  docker compose -f docker-compose-localhost.yml down"
 echo ""
 print_warning "Update your Laravel .env file:"
-echo "  PDF_SERVICE_URL=http://localhost:80"
+echo "  PDF_SERVICE_URL=http://localhost:8080"
 echo ""
 print_success "Setup complete! Your localhost PDF service can now handle 15-20 concurrent users! 🚀"

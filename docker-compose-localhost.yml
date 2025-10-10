@@ -74,7 +74,7 @@ services:
     image: nginx:alpine
     container_name: pdf-nginx-localhost
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./nginx-localhost.conf:/etc/nginx/nginx.conf:ro
     depends_on:
