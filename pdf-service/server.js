@@ -43,10 +43,32 @@ Handlebars.registerHelper('eq', function(a, b) {
     return a === b;
 });
 
-// Browser instance pool - use disposable instances for cloud stability
+// Browser instance pool - keep browser running for efficiency
+let browser = null;
 let browserPromise = null;
 
 async function getBrowser() {
+    // If browser is already running, return it
+    if (browser && browser.isConnected()) {
+        console.log('♻️  Reusing existing Chromium instance');
+        return browser;
+    }
+
+    // If browser is starting up, wait for it
+    if (browserPromise) {
+        console.log('⏳ Waiting for browser to start...');
+        return await browserPromise;
+    }
+
+    // Start new browser
+    browserPromise = launchBrowser();
+    browser = await browserPromise;
+    browserPromise = null;
+    
+    return browser;
+}
+
+async function launchBrowser() {
     // Ultra-minimal config for Alpine Linux + Chromium
     const launchOptions = {
         headless: 'new', // Use new headless mode
@@ -73,15 +95,25 @@ async function getBrowser() {
     console.log('   Executable:', launchOptions.executablePath || 'default');
     console.log('   Args:', launchOptions.args.join(' '));
     
-    const browser = await puppeteer.launch(launchOptions);
+    const browserInstance = await puppeteer.launch(launchOptions);
     console.log('✅ Chromium launched successfully!');
     
-    return browser;
+    // Handle browser disconnect
+    browserInstance.on('disconnected', () => {
+        console.log('⚠️  Browser disconnected, will restart on next request');
+        browser = null;
+    });
+    
+    return browserInstance;
 }
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
     console.log('🛑 SIGTERM received, shutting down gracefully...');
+    if (browser) {
+        console.log('🔒 Closing browser...');
+        await browser.close();
+    }
     process.exit(0);
 });
 
@@ -111,7 +143,7 @@ app.post('/generate-invoice-pdf', async (req, res) => {
         // Generate HTML from template
         const html = template(invoice);
 
-        // Launch browser and create PDF (disposable instance)
+        // Get browser instance (reuse if available)
         browserInstance = await getBrowser();
         page = await browserInstance.newPage();
 
@@ -131,8 +163,7 @@ app.post('/generate-invoice-pdf', async (req, res) => {
             }
         });
 
-        await page.close();
-        await browserInstance.close(); // Close browser after use
+        await page.close(); // Close page, but keep browser running
 
         // Send PDF as response
         res.setHeader('Content-Type', 'application/pdf');
@@ -145,9 +176,8 @@ app.post('/generate-invoice-pdf', async (req, res) => {
     } catch (error) {
         console.error('❌ Error generating PDF:', error);
         
-        // Cleanup on error
+        // Cleanup on error (close page only)
         if (page) await page.close().catch(() => {});
-        if (browserInstance) await browserInstance.close().catch(() => {});
         
         res.status(500).json({ 
             error: 'Failed to generate PDF', 
@@ -169,8 +199,10 @@ app.post('/generate-batch-pdf', async (req, res) => {
 
         const results = [];
 
+        // Get browser once for all PDFs
+        const browserInstance = await getBrowser();
+        
         for (const invoice of invoices) {
-            let browserInstance = null;
             let page = null;
             
             try {
@@ -182,8 +214,7 @@ app.post('/generate-batch-pdf', async (req, res) => {
                 // Generate HTML from template
                 const html = template(invoice);
 
-                // Create fresh browser for each PDF
-                browserInstance = await getBrowser();
+                // Create new page (reuse browser)
                 page = await browserInstance.newPage();
                 
                 await page.setContent(html, { 
@@ -202,8 +233,7 @@ app.post('/generate-batch-pdf', async (req, res) => {
                     }
                 });
 
-                await page.close();
-                await browserInstance.close(); // Close after each PDF
+                await page.close(); // Close page, keep browser
 
                 results.push({
                     invoice_number: invoice.invoice_number,
@@ -216,9 +246,8 @@ app.post('/generate-batch-pdf', async (req, res) => {
             } catch (error) {
                 console.error(`❌ Error generating PDF for invoice ${invoice.invoice_number}:`, error);
                 
-                // Cleanup on error
+                // Cleanup on error (close page only)
                 if (page) await page.close().catch(() => {});
-                if (browserInstance) await browserInstance.close().catch(() => {});
                 
                 results.push({
                     invoice_number: invoice.invoice_number,
