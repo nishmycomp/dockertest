@@ -202,8 +202,9 @@ class QueueManager {
     async processPdfJob(job, tenantId) {
         const { invoiceData, options, batchId } = job.data;
         const config = this.tenantConfigs.get(tenantId);
+        const workerId = process.env.WORKER_ID || 'unknown-worker';
         
-        console.log(`📄 Processing PDF for tenant ${config.name}: ${invoiceData.invoice_number}`);
+        console.log(`📄 Processing PDF for tenant ${config.name}: ${invoiceData.invoice_number} (Worker: ${workerId})`);
         
         try {
             // PDF generation logic here
@@ -218,7 +219,7 @@ class QueueManager {
                 await this.incrBatchCompleted(tenantId, batchId).catch(() => {});
             }
 
-            console.log(`✅ PDF generated successfully: ${invoiceData.invoice_number}`);
+            console.log(`✅ PDF generated successfully: ${invoiceData.invoice_number} (Worker: ${workerId})`);
 
             return {
                 success: true,
@@ -227,7 +228,7 @@ class QueueManager {
                 invoiceNumber: invoiceData.invoice_number
             };
         } catch (error) {
-            console.error(`❌ PDF generation failed for ${config.name}:`, error.message);
+            console.error(`❌ PDF generation failed for ${config.name} (Worker: ${workerId}):`, error.message);
             
             // Update batch failed counter
             if (batchId) {
@@ -250,8 +251,9 @@ class QueueManager {
     async processEmailJob(job, tenantId) {
         const { invoiceData, emailData, pdfPath, batchId } = job.data;
         const config = this.tenantConfigs.get(tenantId);
+        const workerId = process.env.WORKER_ID || 'unknown-worker';
         
-        console.log(`📧 Sending email for tenant ${config.name}: ${invoiceData.invoice_number} to ${emailData.to}`);
+        console.log(`📧 Sending email for tenant ${config.name}: ${invoiceData.invoice_number} to ${emailData.to} (Worker: ${workerId})`);
         
         try {
             // Validate email address
@@ -278,7 +280,7 @@ class QueueManager {
                 await this.incrBatchCompleted(tenantId, batchId).catch(() => {});
             }
             
-            console.log(`✅ Email sent successfully: ${invoiceData.invoice_number} to ${emailData.to}`);
+            console.log(`✅ Email sent successfully: ${invoiceData.invoice_number} to ${emailData.to} (Worker: ${workerId})`);
             
             return {
                 success: true,
@@ -289,7 +291,7 @@ class QueueManager {
                 recipient: emailData.to
             };
         } catch (error) {
-            console.error(`❌ Email sending failed for ${config.name}:`, error.message);
+            console.error(`❌ Email sending failed for ${config.name} (Worker: ${workerId}):`, error.message);
             
             // Update batch failed counter
             if (batchId) {
