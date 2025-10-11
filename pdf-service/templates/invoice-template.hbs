@@ -158,6 +158,14 @@
             font-style: italic;
         }
         
+        .billing-reference {
+            font-size: 11px;
+            color: #111827;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid #E5E7EB;
+        }
+        
         .invoice-meta {
             text-align: right;
             flex: 1;
@@ -470,6 +478,14 @@
                 {{/if}}
                 {{#if billing_details.relationship}}
                 <div class="billing-relationship">{{billing_details.relationship}}</div>
+                {{/if}}
+                {{#if client_name}}
+                <div class="billing-reference">
+                    <strong>Reference:</strong> {{client_name}}
+                    {{#if client_ndis_number}}
+                    - NDIS: {{client_ndis_number}}
+                    {{/if}}
+                </div>
                 {{/if}}
             </div>
             <div class="invoice-meta">
