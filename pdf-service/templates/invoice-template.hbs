@@ -125,6 +125,39 @@
             color: #000000;
         }
         
+        .billing-email {
+            font-size: 11px;
+            color: #4B5563;
+            margin-top: 2px;
+        }
+        
+        .billing-phone {
+            font-size: 11px;
+            color: #4B5563;
+            margin-top: 2px;
+        }
+        
+        .billing-address {
+            font-size: 11px;
+            color: #4B5563;
+            margin-top: 2px;
+            line-height: 1.4;
+        }
+        
+        .billing-abn {
+            font-size: 11px;
+            color: #4B5563;
+            margin-top: 2px;
+            font-weight: 500;
+        }
+        
+        .billing-relationship {
+            font-size: 11px;
+            color: #6B7280;
+            margin-top: 2px;
+            font-style: italic;
+        }
+        
         .invoice-meta {
             text-align: right;
             flex: 1;
@@ -423,6 +456,21 @@
             <div class="billing-info">
                 <div class="billing-label">Bill To</div>
                 <div class="billing-name">{{billing_details.name}}</div>
+                {{#if billing_details.email}}
+                <div class="billing-email">{{billing_details.email}}</div>
+                {{/if}}
+                {{#if billing_details.phone}}
+                <div class="billing-phone">{{billing_details.phone}}</div>
+                {{/if}}
+                {{#if billing_details.address}}
+                <div class="billing-address">{{billing_details.address}}</div>
+                {{/if}}
+                {{#if billing_details.abn}}
+                <div class="billing-abn">ABN: {{billing_details.abn}}</div>
+                {{/if}}
+                {{#if billing_details.relationship}}
+                <div class="billing-relationship">{{billing_details.relationship}}</div>
+                {{/if}}
             </div>
             <div class="invoice-meta">
                 <div class="meta-row">
