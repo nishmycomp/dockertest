@@ -47,27 +47,13 @@
         <th style="text-align: left; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #ddd; font-weight: 600;" align="left">Amount</th>
       </tr>
       {{#each lineItems}}
-      {{#if @first}}
       {{#if ../showAllItems}}
       <tr>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
       </tr>
       {{else}}
-      {{#if @index}}<3{{/if}}
-      <tr>
-        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
-        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
-      </tr>
-      {{/if}}
-      {{else}}
-      {{#if ../showAllItems}}
-      <tr>
-        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
-        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
-      </tr>
-      {{else}}
-      {{#if @index}}<3{{/if}}
+      {{#if (lt @index 3)}}
       <tr>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
