@@ -39,6 +39,13 @@ class QueueManager {
                 emailRateLimit: 50 // emails per minute
             },
             {
+                id: 'app_3_my_companionship',
+                name: 'My Companionship',
+                rateLimit: 100, // requests per minute
+                concurrency: 5,
+                emailRateLimit: 50 // emails per minute
+            },
+            {
                 id: 'tenant_2',
                 name: 'Tenant 2',
                 rateLimit: 50,
@@ -470,6 +477,7 @@ class QueueManager {
         // Map tenant IDs to Laravel app URLs
         const tenantUrls = {
             'app_imploy_com_au': process.env.LARAVEL_URL || 'http://127.0.0.1:8000',
+            'app_3_my_companionship': process.env.LARAVEL_URL || 'http://127.0.0.1:8000',
             'tenant_2': 'http://tenant2.example.com'
             // Add more tenant URLs as needed
         };
