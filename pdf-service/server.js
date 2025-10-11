@@ -139,11 +139,11 @@ app.get('/queue/stats', async (req, res) => {
 // Batch lifecycle endpoints
 app.post('/queue/batch/start', async (req, res) => {
     try {
-        const { tenantId = 'app_imploy_com_au', batchId, total, userId } = req.body || {};
+        const { tenantId = 'app_imploy_com_au', batchId, total, userId, appId, uniqueName } = req.body || {};
         if (!batchId || !Number.isFinite(Number(total))) {
             return res.status(400).json({ success: false, error: 'batchId and total are required' });
         }
-        await queueManager.startBatch(tenantId, String(batchId), Number(total), userId);
+        await queueManager.startBatch(tenantId, String(batchId), Number(total), userId, appId, uniqueName);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

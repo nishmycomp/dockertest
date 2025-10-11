@@ -143,7 +143,7 @@ class QueueManager {
         return `batch:${tenantId}:${batchId}`;
     }
 
-    async startBatch(tenantId, batchId, total, userId = null) {
+    async startBatch(tenantId, batchId, total, userId = null, appId = null, uniqueName = null) {
         if (!tenantId || !batchId || !Number.isFinite(Number(total))) return;
         const key = this.getBatchKey(tenantId, batchId);
         // Initialize if not exists; always set total to latest provided
@@ -155,6 +155,12 @@ class QueueManager {
         };
         if (userId) {
             batchData.userId = userId;
+        }
+        if (appId) {
+            batchData.appId = appId;
+        }
+        if (uniqueName) {
+            batchData.uniqueName = uniqueName;
         }
         await this.hSetCompat(key, batchData);
     }
@@ -417,9 +423,14 @@ class QueueManager {
             
             // Get userId from batch if available
             let userId = null;
+            let appId = null;
+            let uniqueName = null;
+            
             if (batchId) {
                 const batchStatus = await this.getBatchStatus(tenantId, batchId);
                 userId = batchStatus?.userId || null;
+                appId = batchStatus?.appId || null;
+                uniqueName = batchStatus?.uniqueName || null;
             }
             
             const axios = require('axios');
@@ -430,7 +441,9 @@ class QueueManager {
                 recipient,
                 batchId,
                 tenantId,
-                userId
+                userId,
+                appId,
+                uniqueName
             };
 
             const response = await axios.post(
