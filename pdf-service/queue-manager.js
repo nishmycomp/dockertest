@@ -23,9 +23,12 @@ class QueueManager {
         this.tenantConfigs = new Map();
         this.emailService = new EmailService();
         this.browser = null;
+        this.jobTimeouts = new Map(); // Track job timeouts
+        this.timeoutChecker = null; // Timeout checker interval
         
         this.initializeTenants();
         this.initializeBrowser();
+        this.startTimeoutChecker();
     }
 
     initializeTenants() {
@@ -595,6 +598,141 @@ class QueueManager {
             await queue.empty();
             console.log(`🗑️  Queue cleared for tenant: ${tenantId}`);
         }
+    }
+
+    // ---- Job Timeout Checker ----
+    startTimeoutChecker() {
+        // Check for timed out jobs every 30 seconds
+        this.timeoutChecker = setInterval(async () => {
+            await this.checkJobTimeouts();
+        }, 30000); // 30 seconds
+        
+        console.log('⏰ Job timeout checker started (30s intervals)');
+    }
+
+    async checkJobTimeouts() {
+        try {
+            const now = Date.now();
+            const timeoutThreshold = 5 * 60 * 1000; // 5 minutes timeout
+            
+            for (const [tenantId, queue] of this.queues) {
+                const activeJobs = await queue.getActive();
+                const waitingJobs = await queue.getWaiting();
+                
+                // Check active jobs for timeout
+                for (const job of activeJobs) {
+                    const jobAge = now - job.timestamp;
+                    if (jobAge > timeoutThreshold) {
+                        console.log(`⏰ Job ${job.id} timed out after ${Math.round(jobAge / 1000)}s`);
+                        await this.handleJobTimeout(tenantId, job);
+                    }
+                }
+                
+                // Check waiting jobs for timeout (jobs stuck in queue)
+                for (const job of waitingJobs) {
+                    const jobAge = now - job.timestamp;
+                    if (jobAge > timeoutThreshold) {
+                        console.log(`⏰ Waiting job ${job.id} timed out after ${Math.round(jobAge / 1000)}s`);
+                        await this.handleJobTimeout(tenantId, job);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ Error in timeout checker:', error.message);
+        }
+    }
+
+    async handleJobTimeout(tenantId, job) {
+        try {
+            const config = this.tenantConfigs.get(tenantId);
+            const jobData = job.data;
+            
+            console.log(`🚨 Handling timeout for job ${job.id} in ${config.name}`);
+            
+            // Extract job information
+            let jobType = 'unknown';
+            let invoiceNumber = 'unknown';
+            let recipient = null;
+            let batchId = jobData.batchId || null;
+            
+            if (job.name === 'generate-pdf') {
+                jobType = 'pdf';
+                invoiceNumber = jobData.invoiceData?.invoice_number || 'unknown';
+            } else if (job.name === 'send-email') {
+                jobType = 'email';
+                invoiceNumber = jobData.invoiceData?.invoice_number || 'unknown';
+                recipient = jobData.emailData?.to || null;
+            }
+            
+            // Remove the job from queue
+            await job.remove();
+            
+            // Send failure notification
+            await this.sendFailureNotification(
+                tenantId,
+                jobType,
+                invoiceNumber,
+                `Job timed out after 5 minutes - no worker processed the job`,
+                batchId,
+                recipient
+            );
+            
+            // Update batch failed counter if applicable
+            if (batchId) {
+                await this.incrBatchFailed(tenantId, batchId).catch(() => {});
+            }
+            
+            console.log(`📬 Timeout notification sent for job ${job.id}`);
+            
+        } catch (error) {
+            console.error('❌ Error handling job timeout:', error.message);
+        }
+    }
+
+    // Track job start time for timeout detection
+    trackJobStart(tenantId, jobId, jobType, invoiceNumber, batchId = null) {
+        const key = `${tenantId}:${jobId}`;
+        this.jobTimeouts.set(key, {
+            tenantId,
+            jobId,
+            jobType,
+            invoiceNumber,
+            batchId,
+            startTime: Date.now()
+        });
+    }
+
+    // Remove job from timeout tracking when completed
+    untrackJob(tenantId, jobId) {
+        const key = `${tenantId}:${jobId}`;
+        this.jobTimeouts.delete(key);
+    }
+
+    // Get timeout statistics
+    getTimeoutStats() {
+        const now = Date.now();
+        const stats = {
+            totalTracked: this.jobTimeouts.size,
+            timeouts: [],
+            active: []
+        };
+        
+        for (const [key, job] of this.jobTimeouts) {
+            const age = now - job.startTime;
+            const jobInfo = {
+                ...job,
+                ageSeconds: Math.round(age / 1000),
+                isTimedOut: age > (5 * 60 * 1000) // 5 minutes
+            };
+            
+            if (jobInfo.isTimedOut) {
+                stats.timeouts.push(jobInfo);
+            } else {
+                stats.active.push(jobInfo);
+            }
+        }
+        
+        return stats;
     }
 }
 

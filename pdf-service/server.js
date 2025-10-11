@@ -324,6 +324,22 @@ app.get('/queue/errors/:tenantId/:batchId?', async (req, res) => {
     }
 });
 
+// Get timeout statistics
+app.get('/queue/timeout-stats', async (req, res) => {
+    try {
+        const stats = queueManager.getTimeoutStats();
+        res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Batch PDF generation endpoint
 app.post('/generate-batch-pdf', async (req, res) => {
     console.log('📥 Received batch PDF generation request');
