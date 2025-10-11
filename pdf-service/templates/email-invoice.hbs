@@ -53,11 +53,18 @@
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
       </tr>
       {{else}}
-      {{#if (lt @index 3)}}
+      {{#if @first}}
       <tr>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
       </tr>
+      {{else}}
+      {{#if @index}}
+      <tr>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+      </tr>
+      {{/if}}
       {{/if}}
       {{/if}}
       {{/each}}
