@@ -12,7 +12,7 @@
         }
         
         @page {
-            margin: 20mm;
+            margin: 15mm;
             size: A4;
         }
         
@@ -34,7 +34,7 @@
         .header-section {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         
         .company-info {
@@ -105,7 +105,7 @@
         .invoice-details {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         
         .billing-info {
@@ -164,7 +164,7 @@
         }
         
         .line-items-table th {
-            padding: 8px 12px;
+            padding: 6px 8px;
             text-align: left;
             font-size: 12px;
             font-weight: bold;
@@ -185,7 +185,7 @@
         }
         
         .line-items-table td {
-            padding: 12px;
+            padding: 8px;
             font-size: 12px;
             color: #000000;
             vertical-align: top;
@@ -232,11 +232,22 @@
             color: #000000;
         }
         
+        .gst-yes {
+            font-size: 11px;
+            font-weight: 600;
+            color: #15803D;
+        }
+        
+        .gst-no {
+            font-size: 11px;
+            color: #9CA3AF;
+        }
+        
         /* Totals Section */
         .totals-section {
             display: flex;
             justify-content: flex-end;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         
         .totals-container {
@@ -246,7 +257,7 @@
         .total-row {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 2px 0;
         }
         
         .total-label {
@@ -261,8 +272,8 @@
         }
         
         .grand-total-row {
-            margin-top: 8px;
-            padding-top: 8px;
+            margin-top: 4px;
+            padding-top: 4px;
             border-top: 1px solid #cccccc;
         }
         
@@ -280,8 +291,8 @@
         
         .balance-due-row {
             background: #f0f0f0;
-            padding: 8px 12px;
-            margin-top: 8px;
+            padding: 4px 8px;
+            margin-top: 4px;
         }
         
         .balance-due-label {
@@ -320,10 +331,49 @@
             margin-bottom: 4px;
         }
         
+        /* Payment Footer */
+        .payment-footer {
+            margin-top: 20px;
+            padding: 16px;
+            background: #F9FAFB;
+            border-radius: 6px;
+            border-top: 2px solid #E5E7EB;
+        }
+        
+        .payment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .payment-section h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+        
+        .payment-section p {
+            font-size: 12px;
+            color: #4B5563;
+            margin-bottom: 4px;
+            line-height: 1.6;
+        }
+        
+        .payment-section strong {
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .payment-full-width {
+            margin-top: 8px;
+        }
+        
         /* Footer */
         .footer {
             text-align: center;
-            margin-top: 40px;
+            margin-top: 20px;
             font-size: 10px;
             color: #666666;
         }
@@ -396,9 +446,10 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Item & Description</th>
+                        <th>Item</th>
                         <th class="text-right">Qty</th>
                         <th class="text-right">Rate</th>
+                        <th class="text-center">GST</th>
                         <th class="text-right">Amount</th>
                     </tr>
                 </thead>
@@ -414,6 +465,13 @@
                         </td>
                         <td class="text-right">{{this.quantity}}</td>
                         <td class="text-right">${{formatNumber this.unit_price}}</td>
+                        <td class="text-center">
+                            {{#if this.gst_applicable}}
+                            <span class="gst-yes">{{../gst_rate}}%</span>
+                            {{else}}
+                            <span class="gst-no">No GST</span>
+                            {{/if}}
+                        </td>
                         <td class="text-right">${{formatNumber (multiply this.quantity this.unit_price)}}</td>
                     </tr>
                     {{/each}}
@@ -448,15 +506,30 @@
         </div>
 
 
-        <!-- Notes Section -->
-        <div class="notes-section">
-            <div class="notes-label">Notes</div>
-            <div class="notes-content">
-                <div class="payment-details">BSB - {{payment_bsb}}</div>
-                <div class="payment-details">Account Number - {{payment_account_number}}</div>
-                {{#if notes}}
-                <div style="margin-top: 8px;">{{notes}}</div>
-                {{/if}}
+        <!-- Payment Details Footer -->
+        <div class="payment-footer">
+            <div class="payment-grid">
+                <div class="payment-section">
+                    <h4>Due Date:</h4>
+                    <p>{{formatDate due_date}}</p>
+                </div>
+                <div class="payment-section">
+                    <h4>Payment Details:</h4>
+                    <p><strong>Account Name:</strong> {{company_name}}</p>
+                    <p><strong>BSB:</strong> {{payment_bsb}}</p>
+                    <p><strong>Account Number:</strong> {{payment_account_number}}</p>
+                </div>
+            </div>
+            
+            <div class="payment-section payment-full-width">
+                <h4>Payment Terms:</h4>
+                <p>All invoices are due within 5 days from the date of issuance.</p>
+            </div>
+            
+            <div class="payment-section payment-full-width">
+                <h4>Late Fees:</h4>
+                <p>• Payments not received within 10 days after the due date will incur a 5% late fee.</p>
+                <p>• An additional 1% late fee will be applied for each week the payment remains overdue.</p>
             </div>
         </div>
 
