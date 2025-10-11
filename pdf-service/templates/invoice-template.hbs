@@ -456,7 +456,7 @@
                 <tbody>
                     {{#each line_items}}
                     <tr>
-                        <td class="text-center">{{@index}}</td>
+                        <td class="text-center">{{this.item_number}}</td>
                         <td>
                             <div class="item-description">{{this.description}}</div>
                             {{#if this.service_date}}
