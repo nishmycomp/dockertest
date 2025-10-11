@@ -9,7 +9,7 @@
   <div class="container" style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 0 4px rgba(0,0,0,0.1);">
     <h1 style="font-size: 20px; margin-bottom: 10px; text-align: center;">{{companyName}}</h1>
 
-    <div class="amount" style="font-size: 24px; font-weight: bold; color: #222; text-align: center;">${{totalAmount}} AUD</div>
+    <div class="amount" style="font-size: 24px; font-weight: bold; color: #222; text-align: center;">${{formatNumber totalAmount}} AUD</div>
     {{#if isOverdue}}
     <div class="overdue" style="color: #d93025; font-weight: 600; text-align: center; margin-bottom: 5px;">Overdue — {{dueDate}}</div>
     {{else}}
@@ -23,10 +23,10 @@
 
     <p style="line-height: 2; margin: 10px 0px;">Hi{{#if clientName}} {{clientName}}{{/if}},</p>
     {{#if isOverdue}}
-    <p style="line-height: 2; margin: 10px 0px;">Thanks for working with us. Your bill for <strong>${{totalAmount}}</strong> was due on {{dueDate}}.</p>
+    <p style="line-height: 2; margin: 10px 0px;">Thanks for working with us. Your bill for <strong>${{formatNumber totalAmount}}</strong> was due on {{dueDate}}.</p>
     <p style="line-height: 2; margin: 10px 0px;">If you've already paid it, please ignore this email. If not, please do so as soon as possible.</p>
     {{else}}
-    <p style="line-height: 2; margin: 10px 0px;">Thanks for working with us. Please find attached your invoice for <strong>${{totalAmount}}</strong> due on {{dueDate}}.</p>
+    <p style="line-height: 2; margin: 10px 0px;">Thanks for working with us. Please find attached your invoice for <strong>${{formatNumber totalAmount}}</strong> due on {{dueDate}}.</p>
     {{/if}}
     {{#if invoiceUrl}}
     <p style="line-height: 2; margin: 10px 0px;">To view your bill visit the link below:</p>
@@ -50,19 +50,19 @@
       {{#if ../showAllItems}}
       <tr>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
-        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{formatNumber this.amount}}</td>
       </tr>
       {{else}}
       {{#if @first}}
       <tr>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
-        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{formatNumber this.amount}}</td>
       </tr>
       {{else}}
       {{#if @index}}
       <tr>
         <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">{{this.description}}</td>
-        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{this.amount}}</td>
+        <td style="text-align: left; padding: 10px 0; font-size: 14px;" align="left">${{formatNumber this.amount}}</td>
       </tr>
       {{/if}}
       {{/if}}
@@ -76,7 +76,7 @@
       {{/if}}
       <tr>
         <td class="total" style="text-align: left; padding: 10px 0; font-weight: 700; font-size: 16px; padding-top: 10px;" align="left">Amount Due</td>
-        <td class="total" style="text-align: left; padding: 10px 0; font-weight: 700; font-size: 16px; padding-top: 10px;" align="left">AUD ${{totalAmount}}</td>
+        <td class="total" style="text-align: left; padding: 10px 0; font-weight: 700; font-size: 16px; padding-top: 10px;" align="left">AUD ${{formatNumber totalAmount}}</td>
       </tr>
     </table>
     {{/if}}
