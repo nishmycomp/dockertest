@@ -41,6 +41,16 @@
             flex: 1;
         }
         
+        .company-logo {
+            margin-bottom: 12px;
+        }
+        
+        .company-logo img {
+            max-height: 60px;
+            max-width: 200px;
+            object-fit: contain;
+        }
+        
         .company-name {
             font-size: 16px;
             font-weight: bold;
@@ -444,6 +454,11 @@
         <!-- Header Section -->
         <div class="header-section">
             <div class="company-info">
+                {{#if company_logo_url}}
+                <div class="company-logo">
+                    <img src="{{company_logo_url}}" alt="{{company_name}}" style="max-height: 60px; max-width: 200px;">
+                </div>
+                {{/if}}
                 <div class="company-name">{{company_name}}</div>
                 <div class="company-address">{{company_address}}</div>
                 <div class="company-abn">ABN {{company_abn}}</div>
@@ -599,8 +614,8 @@
 
         <!-- Footer -->
         <div class="footer">
-            <div class="footer-line">Crafted with ease using</div>
-            <div class="footer-line">Visit zoho.com/invoice to create truly professional invoices</div>
+            <div class="footer-line">Powered by Imploy</div>
+            <div class="footer-line">Professional invoicing made simple</div>
         </div>
         
         <div class="page-number">1</div>
