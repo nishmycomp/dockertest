@@ -86,6 +86,8 @@ class QueueManager {
 
         // Rate limiting
         queue.process('generate-pdf', config.concurrency, async (job) => {
+            const workerId = process.env.WORKER_ID || 'unknown-worker';
+            console.log(`🎯 PDF job ${job.id} assigned to worker: ${workerId}`);
             try {
                 return await this.processPdfJob(job, tenantId);
             } catch (error) {
@@ -96,6 +98,8 @@ class QueueManager {
         });
 
         queue.process('send-email', 2, async (job) => {
+            const workerId = process.env.WORKER_ID || 'unknown-worker';
+            console.log(`🎯 Email job ${job.id} assigned to worker: ${workerId}`);
             try {
                 return await this.processEmailJob(job, tenantId);
             } catch (error) {

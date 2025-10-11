@@ -218,6 +218,7 @@ app.post('/send-invoice-email', async (req, res) => {
         });
 
         console.log(`✅ Email job added to queue: ${job.id} for tenant: ${tenantId}`);
+        console.log(`🔄 Job queued - waiting for worker assignment...`);
         
         res.json({
             success: true,
