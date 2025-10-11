@@ -18,7 +18,10 @@ Handlebars.registerHelper('formatCurrency', function(amount) {
 
 Handlebars.registerHelper('formatNumber', function(number) {
     if (!number && number !== 0) return '0.00';
-    return parseFloat(number).toFixed(2);
+    return parseFloat(number).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 });
 
 Handlebars.registerHelper('add', function(a, b) {

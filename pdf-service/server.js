@@ -35,6 +35,14 @@ Handlebars.registerHelper('formatCurrency', function(amount) {
     return '$' + parseFloat(amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
 });
 
+Handlebars.registerHelper('formatNumber', function(number) {
+    if (!number && number !== 0) return '0.00';
+    return parseFloat(number).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+});
+
 Handlebars.registerHelper('add', function(a, b) {
     return parseFloat(a || 0) + parseFloat(b || 0);
 });
