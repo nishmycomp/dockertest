@@ -286,6 +286,9 @@ class QueueManager {
             
             console.log(`✅ Email sent successfully: ${invoiceData.invoice_number} to ${emailData.to} (Worker: ${workerId})`);
             
+            // Send success notification to Laravel
+            await this.sendSuccessNotification(tenantId, invoiceData.invoice_number, emailData.to, batchId);
+            
             return {
                 success: true,
                 tenantId,
@@ -478,6 +481,56 @@ class QueueManager {
             console.log(`📬 Failure notification sent to Laravel: ${response.data.message} (userId: ${userId || 'N/A'})`);
         } catch (error) {
             console.error('⚠️ Failed to send notification to Laravel:', error.message);
+            // Don't throw - notification failure shouldn't stop the job processing
+        }
+    }
+
+    async sendSuccessNotification(tenantId, invoiceNumber, recipient, batchId = null) {
+        try {
+            // Determine the Laravel app URL based on tenant
+            const laravelUrl = this.getLaravelUrl(tenantId);
+            
+            // Get userId from batch if available
+            let userId = null;
+            let appId = null;
+            let uniqueName = null;
+            
+            if (batchId) {
+                const batchStatus = await this.getBatchStatus(tenantId, batchId);
+                userId = batchStatus?.userId || null;
+                appId = batchStatus?.appId || null;
+                uniqueName = batchStatus?.uniqueName || null;
+            }
+            
+            const axios = require('axios');
+            const notificationPayload = {
+                jobType: 'email',
+                invoiceNumber,
+                recipient,
+                batchId,
+                tenantId,
+                userId,
+                appId,
+                uniqueName,
+                status: 'sent'
+            };
+
+            const response = await axios.post(
+                `${laravelUrl}/api/queue/notification/job-success`,
+                notificationPayload,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-API-TOKEN': process.env.LARAVEL_API_TOKEN || ''
+                    },
+                    timeout: 5000 // 5 second timeout
+                }
+            );
+
+            console.log(`📬 Success notification sent to Laravel: ${response.data.message} (userId: ${userId || 'N/A'})`);
+        } catch (error) {
+            console.error('⚠️ Failed to send success notification to Laravel:', error.message);
             // Don't throw - notification failure shouldn't stop the job processing
         }
     }
